@@ -67,9 +67,10 @@ int main() {
 // (1 << 1) XDP_FLAGS_SKB_MODE
 // (1 << 2) XDP_FLAGS_DRV_MODE
 
-    if (bind(xdp_fd, (sockaddr*) &address, sizeof(address)) < 0) {
+    const auto bind_result = bind(xdp_fd, (struct sockaddr*) &address, sizeof(address));
+    if (bind_result < 0) {
         close(xdp_fd);
-        perror("Can't bind xdp socket to interface!");
+        std::cerr << "Can't bind xdp socket to interface: " << bind_result << std::endl;
         return -1;
     }
 
