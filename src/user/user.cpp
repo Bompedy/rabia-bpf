@@ -64,7 +64,7 @@ int main() {
     memset(&address, 0, sizeof(address));
     address.sxdp_family = AF_XDP;
     address.sxdp_ifindex = interface_index;
-    address.sxdp_queue_id = 63;
+    address.sxdp_queue_id = 0;
     address.sxdp_flags = (1 << 1);
 // (1 << 1) XDP_FLAGS_SKB_MODE
 // (1 << 2) XDP_FLAGS_DRV_MODE
