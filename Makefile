@@ -4,6 +4,9 @@ KERNEL_OUT_FILE = obj/kernel.o
 USER_IN_FILE = src/user/user.cpp
 USER_OUT_FILE = obj/user
 
+link-types:
+	ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm
+
 check-xdp:
 	bpftool net show dev $(INTERFACE)
 
@@ -34,4 +37,6 @@ clean-user:
 clean: clean-xdp clean-user
 
 all: disable-xdp build-xdp deploy-user
+
+.PHONY: check-xdp disable-xdp build-xdp clean-xdp deploy-xdp build-user deploy-user clean-user clean all
 
