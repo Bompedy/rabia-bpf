@@ -42,6 +42,8 @@ int main() {
     }
 
 
+    std::cout << "Got index: " << interface_index << std::endl;
+
     if (bpf_set_link_xdp_fd(interface_index, bpf_fd, 0) < 0) {
         perror("Failed to attach xdp program to interface!");
         return 1;
