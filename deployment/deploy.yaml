@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bpf
+  labels:
+    app: bpf
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bpf
+  template:
+    metadata:
+      labels:
+        app: bpf
+    spec:
+      containers:
+        - name: bpf
+          image: bpf-image:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          securityContext:
+            privileged: true

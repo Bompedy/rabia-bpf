@@ -14,7 +14,7 @@ int xdp_prog(struct __sk_buff *skb) {
     int key = 0;
     long *value = bpf_map_lookup_elem(&packet_count_map, &key);
     if (value) __sync_fetch_and_add(value, 1);
-    return XDP_DROP;
+    return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";
