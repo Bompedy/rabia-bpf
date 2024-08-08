@@ -26,7 +26,7 @@ deploy-xdp: clean-xdp build-xdp
 
 build-user: clean-user
 	mkdir -p obj
-	clang-15 -o $(USER_OUT_FILE) $(USER_IN_FILE) -lbpf
+	clang-15 -o $(USER_OUT_FILE) $(USER_IN_FILE) -lbpf -lstdc++
 
 deploy-user: clean-user build-user
 	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
