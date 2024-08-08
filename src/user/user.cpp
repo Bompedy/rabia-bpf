@@ -58,6 +58,8 @@ int main() {
         return 1;
     }
 
+    std::cout << "Created xdp socket: " << xdp_fd << std::endl;
+
     struct sockaddr_xdp address = {};
     memset(&address, 0, sizeof(address));
     address.sxdp_family = AF_XDP;
@@ -74,7 +76,7 @@ int main() {
         return -1;
     }
 
-    std::cout << "Created xdp socket: " << xdp_fd << std::endl;
+    std::cout << "xdp socket has been binded: " << bind_result << std::endl;
 
     int i = 0;
     char packet[64];
