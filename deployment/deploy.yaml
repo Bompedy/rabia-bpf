@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: bpf
+        build-time: "<BUILD_TIME>"
     spec:
       containers:
         - name: bpf
@@ -30,3 +31,25 @@ spec:
                 - NET_ADMIN
                 - SYS_ADMIN
                 - IPC_LOCK
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deployment-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deployment-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: deployment-reader
+  apiGroup: rbac.authorization.k8s.io
