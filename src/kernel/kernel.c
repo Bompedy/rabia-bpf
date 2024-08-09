@@ -3,26 +3,39 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 
-struct bpf_map_def SEC("maps") packet_count_map = {
+struct bpf_map_def SEC("maps") states = {
         .type = BPF_MAP_TYPE_ARRAY,
         .key_size = sizeof(int),
         .value_size = sizeof(long),
-        .max_entries = 1,
+        .max_entries = 10000000,
+};
+
+struct bpf_map_def SEC("maps") votes = {
+        .type = BPF_MAP_TYPE_ARRAY,
+        .key_size = sizeof(int),
+        .value_size = sizeof(char),
+        .max_entries = 10000000,
+};
+
+struct bpf_map_def SEC("maps") proposals = {
+        .type = BPF_MAP_TYPE_ARRAY,
+        .key_size = sizeof(int),
+        .value_size = sizeof(char),
+        .max_entries = 1250000,
+};
+
+struct bpf_map_def SEC("maps") input_buf = {
+        .type = BPF_MAP_TYPE_RINGBUF,
+        .max_entries = 4096,
+};
+
+struct bpf_map_def SEC("maps") output_buf = {
+        .type = BPF_MAP_TYPE_RINGBUF,
+        .max_entries = 4096,
 };
 
 SEC("xdp")
 int xdp_prog(struct __sk_buff *skb) {
-    int key = 0;
-    long initial = 0;
-    long *value;
-    value = bpf_map_lookup_elem(&packet_count_map, &key);
-
-    if (!value) {
-        bpf_map_update_elem(&packet_count_map, &key, &initial, BPF_ANY);
-        value = &initial;
-    }
-
-    __sync_fetch_and_add(value, 1);
     return XDP_PASS;
 }
 
