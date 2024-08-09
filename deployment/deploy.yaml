@@ -16,9 +16,17 @@ spec:
     spec:
       containers:
         - name: bpf
+          resources:
+            limits:
+              memory: "512Mi"
           image: bpf-image:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 80
           securityContext:
             privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+                - SYS_ADMIN
+                - IPC_LOCK
