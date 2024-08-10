@@ -13,7 +13,7 @@ all: clean build
 build:
 	mkdir -p obj
 	clang-15 -O2 -target bpf -g -c $(KERNEL_IN_FILE) -o $(KERNEL_OUT_FILE)
-	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -I/usr/include/nlohmann -lcurl -lssl -lcrypto -lelf -lbpf -lstdc++ -lz
+	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -I/usr/include/nlohmann -lelf -lbpf -lstdc++ -lz
 	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
 
 clean:

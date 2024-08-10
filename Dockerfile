@@ -12,11 +12,8 @@ RUN apt-get update && apt-get install -y \
     make \
     build-essential \
     linux-headers-generic \
-#    libbpf-dev \
-    libssl-dev \
     libelf-dev \
     zlib1g-dev \
-    libcurl4-openssl-dev \
     pkgconf \
     nlohmann-json3-dev
 
