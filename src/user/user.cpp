@@ -9,16 +9,16 @@
 #include <netinet/in.h>
 #include <cstring>
 #include <cerrno>
-#include <fstream>
 #include <thread>
 #include <chrono>
+#include <string>
+#include <nlohmann/json.hpp>
 #include <cstdio>
 #include <stdexcept>
-#include <string>
 #include <array>
-#include <nlohmann/json.hpp>
 #include <netdb.h>
 #include <ifaddrs.h>
+
 
 std::string getMachineIpAddress() {
     std::string ipAddress;
@@ -79,7 +79,6 @@ std::vector<std::string> getPodIps(const std::string& build_time) {
     return matchingIPs;
 }
 
-
 int main() {
 
     const auto build_time = getenv("BUILD_TIME"); // KUBERNETES
@@ -102,7 +101,7 @@ int main() {
     }
 
     for (const auto& ip : pod_addresses) {
-        std::cout << "Pod IP: " << ip << " machine: " << machine_address << std::endl;
+        std::cout << "Pod IP: " << ip << std::endl;
     }
 
     const auto interface = getenv("INTERFACE");
@@ -115,57 +114,79 @@ int main() {
         std::cerr << "Failed to open BPF object file: " << std::strerror(errno) << std::endl;
         return EXIT_FAILURE;
     }
-    if (bpf_object__load(obj)) {
-        std::cerr << "Failed to load BPF object: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    const auto program = bpf_object__find_program_by_title(obj, "xdp");
-    if (!program) {
-        std::cerr << "Failed to find BPF program: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    const auto bpf_fd = bpf_program__fd(program);
-    const auto interface_index = if_nametoindex(interface);
-    if (interface_index == 0) {
-        std::cerr << "Failed to find interface: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    std::cout << "Got index: " << interface_index << std::endl;
-    if (bpf_set_link_xdp_fd(interface_index, bpf_fd, 0) < 0) {
-        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    std::cout << "Attached to XDP on " << interface << std::endl;
-    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    if (fd < 0) {
-        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    struct sockaddr_ll addr{};
-    memset(&addr, 0, sizeof(addr));
-    addr.sll_family = AF_PACKET;
-    addr.sll_protocol = htons(ETH_P_ALL);
-    addr.sll_ifindex = interface_index;
-    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
-        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
-        close(fd);
-        return EXIT_FAILURE;
-    }
-    struct ifreq ifr{};
-    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
-    ifr.ifr_ifindex = interface_index;
-    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
-        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
-        close(fd);
-        return EXIT_FAILURE;
-    }
+//    std::cout << "Loading object" << std::endl;
+//    if (bpf_object__load(obj)) {
+//        std::cerr << "Failed to load BPF object: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    std::cout << "Loaded" << std::endl;
+//    const auto program = bpf_object__find_program_by_title(obj, "xdp");
+//    if (!program) {
+//        std::cerr << "Failed to find BPF program: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    const auto bpf_fd = bpf_program__fd(program);
+//    const auto interface_index = if_nametoindex(interface);
+//    if (interface_index == 0) {
+//        std::cerr << "Failed to find interface: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+////    std::cout << "Got index: " << interface_index << std::endl;
+////    if (bpf_set_link_xdp_fd(interface_index, bpf_fd, 0) < 0) {
+////        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
+////        return EXIT_FAILURE;
+////    }
+////    std::cout << "Attached to XDP on " << interface << std::endl;
+//
+//    const auto tc_program = bpf_object__find_program_by_title(obj, "filter");
+//    if (!tc_program) {
+//        std::cerr << "Failed to find TC program: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    const auto tc_fd = bpf_program__fd(tc_program);
+//
+//    if (system(("tc qdisc add dev " + std::string(interface) + " clsact").c_str()) != 0) {
+//        std::cerr << "Failed to add Qdisc to interface: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//
+//    if (system(("tc filter add dev " + std::string(interface) + " ingress bpf da obj ./obj/kernel.o " + std::string("section filter")).c_str()) != 0) {
+//        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    std::cout << "Attached TC program to " << interface << std::endl;
+
+
+//    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+//    if (fd < 0) {
+//        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    struct sockaddr_ll addr{};
+//    memset(&addr, 0, sizeof(addr));
+//    addr.sll_family = AF_PACKET;
+//    addr.sll_protocol = htons(ETH_P_ALL);
+//    addr.sll_ifindex = interface_index;
+//    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
+//        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
+//        close(fd);
+//        return EXIT_FAILURE;
+//    }
+//    struct ifreq ifr{};
+//    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
+//    ifr.ifr_ifindex = interface_index;
+//    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
+//        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
+//        close(fd);
+//        return EXIT_FAILURE;
+//    }
 
     while (true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    close(fd);
-    close(bpf_fd);
+//    close(fd);
+//    close(bpf_fd);
     std::cout << "Exiting program!" << std::endl;
     return 0;
 }

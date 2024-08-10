@@ -1,42 +1,63 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include <linux/if_ether.h>
-#include <linux/ip.h>
 
-struct bpf_map_def SEC("maps") states = {
-        .type = BPF_MAP_TYPE_ARRAY,
-        .key_size = sizeof(int),
-        .value_size = sizeof(long),
-        .max_entries = 10000000,
-};
 
-struct bpf_map_def SEC("maps") votes = {
-        .type = BPF_MAP_TYPE_ARRAY,
-        .key_size = sizeof(int),
-        .value_size = sizeof(char),
-        .max_entries = 10000000,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(int));
+    __uint(value_size, sizeof(long));
+    __uint(max_entries, 10000000);
+} states SEC(".maps");
 
-struct bpf_map_def SEC("maps") proposals = {
-        .type = BPF_MAP_TYPE_ARRAY,
-        .key_size = sizeof(int),
-        .value_size = sizeof(char),
-        .max_entries = 1250000,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(int));
+    __uint(value_size, sizeof(char));
+    __uint(max_entries, 10000000);
+} votes SEC(".maps");
 
-struct bpf_map_def SEC("maps") input_buf = {
-        .type = BPF_MAP_TYPE_RINGBUF,
-        .max_entries = 4096,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(int));
+    __uint(value_size, sizeof(char));
+    __uint(max_entries, 1250000);
+} proposals SEC(".maps");
 
-struct bpf_map_def SEC("maps") output_buf = {
-        .type = BPF_MAP_TYPE_RINGBUF,
-        .max_entries = 4096,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 4096);
+} input_buf SEC(".maps");
 
-SEC("xdp")
-int xdp_prog(struct __sk_buff *skb) {
-    return XDP_PASS;
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 4096);
+} output_buf SEC(".maps");
+//
+//SEC("xdp")
+//int xdp_hook(struct __sk_buff *skb) {
+//    return XDP_PASS;
+//}
+
+#define TC_ACT_OK 0
+
+SEC("tc/ingress")
+int tc_ingress(struct __sk_buff *skb) {
+    return TC_ACT_OK;
 }
+
+SEC("tc/egress")
+int tc_egress(struct __sk_buff *skb) {
+    return TC_ACT_OK;
+}
+//
+//SEC("action")
+//int tc_action(struct __sk_buff *skb) {
+//    return TC_ACT_OK;
+//}
+//
+//SEC("tc")
+//int tc(struct __sk_buff *skb) {
+//    return TC_ACT_OK;
+//}
 
 char _license[] SEC("license") = "GPL";

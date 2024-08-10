@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     git \
     clang-15 \
+#    clang \
     make \
     build-essential \
     linux-headers-generic \
