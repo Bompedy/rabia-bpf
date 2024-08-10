@@ -109,84 +109,104 @@ int main() {
         std::cerr << "Interface env var is not set!" << std::endl;
         return EXIT_FAILURE;
     }
+    char command[256];
+    snprintf(command, sizeof(command),"tc qdisc add dev %s clsact", interface);
+    if (system(command) != 0) {
+        fprintf(stderr, "Failed to execute command: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    printf("Successfully added qdisc to %s\n", interface);
+
     const auto obj = bpf_object__open_file("./obj/kernel.o", nullptr);
     if (!obj) {
         std::cerr << "Failed to open BPF object file: " << std::strerror(errno) << std::endl;
         return EXIT_FAILURE;
     }
-//    std::cout << "Loading object" << std::endl;
-//    if (bpf_object__load(obj)) {
-//        std::cerr << "Failed to load BPF object: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//    std::cout << "Loaded" << std::endl;
-//    const auto program = bpf_object__find_program_by_title(obj, "xdp");
-//    if (!program) {
-//        std::cerr << "Failed to find BPF program: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//    const auto bpf_fd = bpf_program__fd(program);
-//    const auto interface_index = if_nametoindex(interface);
-//    if (interface_index == 0) {
-//        std::cerr << "Failed to find interface: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-////    std::cout << "Got index: " << interface_index << std::endl;
-////    if (bpf_set_link_xdp_fd(interface_index, bpf_fd, 0) < 0) {
-////        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
-////        return EXIT_FAILURE;
-////    }
-////    std::cout << "Attached to XDP on " << interface << std::endl;
-//
-//    const auto tc_program = bpf_object__find_program_by_title(obj, "filter");
-//    if (!tc_program) {
-//        std::cerr << "Failed to find TC program: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//    const auto tc_fd = bpf_program__fd(tc_program);
-//
-//    if (system(("tc qdisc add dev " + std::string(interface) + " clsact").c_str()) != 0) {
-//        std::cerr << "Failed to add Qdisc to interface: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//
-//    if (system(("tc filter add dev " + std::string(interface) + " ingress bpf da obj ./obj/kernel.o " + std::string("section filter")).c_str()) != 0) {
-//        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//    std::cout << "Attached TC program to " << interface << std::endl;
+    std::cout << "Loading object" << std::endl;
+    if (bpf_object__load(obj)) {
+        std::cerr << "Failed to load BPF object: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << "Loaded" << std::endl;
+    const auto program = bpf_object__find_program_by_name(obj, "xdp_hook");
+    if (!program) {
+        std::cerr << "Failed to find BPF program: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    const auto bpf_fd = bpf_program__fd(program);
+    const auto interface_index = if_nametoindex(interface);
+    if (interface_index == 0) {
+        std::cerr << "Failed to find interface: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << "Got index: " << interface_index << std::endl;
+    if (bpf_xdp_attach(interface_index, bpf_fd, 0, nullptr) < 0) {
+        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << "Attached to XDP on " << interface << std::endl;
+
+    const auto tc_program = bpf_object__find_program_by_name(obj, "tc_hook");
+    if (!tc_program) {
+        std::cerr << "Failed to find TC program: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    const auto tc_fd = bpf_program__fd(tc_program);
+
+    struct bpf_tc_hook hook = {};
+    struct bpf_tc_opts opts = {};
+    hook.sz = sizeof(hook);
+    hook.attach_point = BPF_TC_EGRESS;
+    hook.ifindex = interface_index;
+    opts.sz = sizeof(opts);
+    opts.prog_fd = tc_fd;
+
+    if (bpf_tc_attach(&hook, &opts)) {
+        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << "Attached to tc!" << std::endl;
 
 
-//    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-//    if (fd < 0) {
-//        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
-//        return EXIT_FAILURE;
-//    }
-//    struct sockaddr_ll addr{};
-//    memset(&addr, 0, sizeof(addr));
-//    addr.sll_family = AF_PACKET;
-//    addr.sll_protocol = htons(ETH_P_ALL);
-//    addr.sll_ifindex = interface_index;
-//    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
-//        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
-//        close(fd);
-//        return EXIT_FAILURE;
-//    }
-//    struct ifreq ifr{};
-//    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
-//    ifr.ifr_ifindex = interface_index;
-//    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
-//        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
-//        close(fd);
-//        return EXIT_FAILURE;
-//    }
-
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    if (fd < 0) {
+        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    struct sockaddr_ll addr{};
+    memset(&addr, 0, sizeof(addr));
+    addr.sll_family = AF_PACKET;
+    addr.sll_protocol = htons(ETH_P_ALL);
+    addr.sll_ifindex = interface_index;
+    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
+        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
+        close(fd);
+        return EXIT_FAILURE;
+    }
+    struct ifreq ifr{};
+    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
+    ifr.ifr_ifindex = interface_index;
+    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
+        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
+        close(fd);
+        return EXIT_FAILURE;
     }
 
-//    close(fd);
-//    close(bpf_fd);
+    char packet[64];
+    memset(packet, 0, sizeof(packet));
+
+    while (true) {
+        if (write(fd, packet, sizeof(packet)) < 0) {
+            std::cerr << "Error sending packet: " << std::strerror(errno) << std::endl;
+        } else {
+            std::cout << "64-byte packet sent" << std::endl;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(3));
+    }
+
+    close(fd);
+    close(bpf_fd);
     std::cout << "Exiting program!" << std::endl;
     return 0;
 }

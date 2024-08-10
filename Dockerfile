@@ -9,18 +9,25 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     git \
     clang-15 \
-#    clang \
     make \
     build-essential \
     linux-headers-generic \
-    libbpf-dev \
+#    libbpf-dev \
     libssl-dev \
+    libelf-dev \
+    zlib1g-dev \
     libcurl4-openssl-dev \
+    pkgconf \
     nlohmann-json3-dev
 
+RUN git clone https://github.com/libbpf/libbpf.git
 RUN ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/asm && git clone --recurse-submodules https://github.com/libbpf/bpftool.git
 WORKDIR /bpftool/src
 RUN make && make install && cp /bpftool/src/bpftool /usr/local/bin/
+
+WORKDIR /libbpf/src
+RUN mkdir build root && BUILD_STATIC_ONLY=y OBJDIR=build DESTDIR=root make install
+RUN cp -r root/usr/* /usr/
 
 WORKDIR /app
 COPY src /app/src
