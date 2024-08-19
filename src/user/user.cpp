@@ -18,80 +18,163 @@
 #include <array>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <netinet/ip.h>
+#include <netinet/ether.h>
+#include <netinet/udp.h>
 
+struct address {
+    std::string ip_str;
+    std::string mac_str;
+    uint8_t mac[6];
+};
 
-std::string getMachineIpAddress() {
-    std::string ipAddress;
-    struct ifaddrs *ifAddrStruct = nullptr;
-    struct ifaddrs *ifa = nullptr;
-    char host[NI_MAXHOST];
-
-    if (getifaddrs(&ifAddrStruct) == -1) {
-        throw std::runtime_error("Failed to get network interfaces");
-    }
-
-    for (ifa = ifAddrStruct; ifa != nullptr; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == nullptr) {
-            continue;
-        }
-
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            if (getnameinfo(ifa->ifa_addr, sizeof(sockaddr_in), host, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST) == 0) {
-                if (std::string(host) != "127.0.0.1") {
-                    ipAddress = host;
-                }
-            }
-        }
-    }
-
-    freeifaddrs(ifAddrStruct);
-    return ipAddress.empty() ? "No valid IP found" : ipAddress;
-}
-
-std::vector<std::string> getPodIps(const std::string& build_time) {
-    std::vector<std::string> matchingIPs;
-    std::string command = "curl -k -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
-                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
-                          "https://kubernetes.default.svc/api/v1/namespaces/default/pods";
+std::string execute_command(const std::string& command) {
     std::array<char, 128> buffer{};
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
     if (!pipe) throw std::runtime_error("popen() failed!");
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
+    return result;
+}
 
+std::string mac_to_string(const unsigned char *mac, size_t len) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < len; ++i) {
+        if (i > 0) oss << ':';
+        oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(mac[i]);
+    }
+    auto mac_addr = oss.str();
+    std::replace(mac_addr.begin(), mac_addr.end(), ':', '-');
+    return mac_addr;
+}
 
+// Function to get machine's IP address and MAC address for a given interface
+address get_machine_addr(const std::string& interface_name) {
+    address result;
+    struct ifaddrs *ifaddr_struct = nullptr;
+    struct ifaddrs *ifa = nullptr;
+    char host[NI_MAXHOST];
+
+    if (getifaddrs(&ifaddr_struct) == -1) {
+        throw std::runtime_error("Failed to get network interfaces");
+    }
+
+    for (ifa = ifaddr_struct; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == nullptr) {
+            continue;
+        }
+
+        if (interface_name == ifa->ifa_name) {
+            if (ifa->ifa_addr->sa_family == AF_INET) {
+                if (getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST) == 0) {
+                    result.ip_str = host;
+                }
+            }
+
+            if (ifa->ifa_addr->sa_family == AF_PACKET) {
+                auto *sll = (struct sockaddr_ll *)ifa->ifa_addr;
+                result.mac_str = mac_to_string(sll->sll_addr, sll->sll_halen);
+            }
+        }
+    }
+
+    freeifaddrs(ifaddr_struct);
+    return result;
+}
+
+std::string get_pod_name() {
+    std::string command = "curl -s -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
+                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
+                          "https://kubernetes.default.svc/api/v1/namespaces/default/pods";
+    const auto result = execute_command(command);
     try {
         auto j = nlohmann::json::parse(result);
         auto items = j["items"];
 
         for (const auto& item : items) {
-            std::string podBuildTime = item["metadata"]["labels"]["build-time"];
-            std::string podIP = item["status"]["podIP"];
-
-            if (podBuildTime == build_time) {
-                matchingIPs.push_back(podIP);
+            std::string current_pod_name = item["metadata"]["name"];
+            // Assuming we are interested in the pod whose hostname matches the current pod's name
+            if (current_pod_name == std::string(getenv("HOSTNAME"))) {
+                return current_pod_name;
             }
         }
     } catch (const nlohmann::json::exception& e) {
         std::cerr << "JSON parsing error: " << e.what() << std::endl;
     }
 
-    return matchingIPs;
+    throw std::runtime_error("Pod name not found");
+}
+
+
+void update_pod_label(const std::string &pod_name, const std::string &mac_address) {
+    const auto command = "curl -X PATCH https://kubernetes.default.svc/api/v1/namespaces/default/pods/" + pod_name + " "
+                          "-H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
+                          "-H \"Content-Type: application/json-patch+json\" "
+                          "-d '[{\"op\": \"add\", \"path\": \"/metadata/labels/mac-address\", \"value\": \"" + mac_address + "\"}]' "
+                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+    const auto result = execute_command(command);
+}
+
+std::vector<address> get_pod_ips(const std::string& build_time) {
+    std::vector<address> matching_ips;
+    const auto command = "curl -k -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
+                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
+                          "https://kubernetes.default.svc/api/v1/namespaces/default/pods";
+    const auto result = execute_command(command);
+    try {
+        auto j = nlohmann::json::parse(result);
+        auto items = j["items"];
+
+        for (const auto& item : items) {
+            std::string mac_addr = item["metadata"]["labels"]["mac-address"];
+            std::string pod_build_time = item["metadata"]["labels"]["build-time"];
+            std::string pod_ip = item["status"]["podIP"];
+            address addy {pod_ip, mac_addr };
+            assert(std::sscanf(mac_addr.c_str(), "%hhx-%hhx-%hhx-%hhx-%hhx-%hhx", addy.mac + 0, addy.mac + 1, addy.mac + 2, addy.mac + 3, addy.mac + 4, addy.mac + 5) == 6);
+            if (pod_build_time == build_time) {
+                for (int i = 0; i < 6; ++i) {
+                    std::cout << i << ": " << int(addy.mac[i]) << std::endl;
+                }
+
+                matching_ips.push_back(addy);
+            }
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    }
+
+    return matching_ips;
+}
+
+int handle_event(void* ctx, void* data, size_t size) {
+    std::cout << "Log: " << reinterpret_cast<char*>(data) << std::endl;
+    return 1;
 }
 
 int main() {
 
+    const auto interface = getenv("INTERFACE");
+    if (!interface) {
+        std::cerr << "Interface env var is not set!" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     const auto build_time = getenv("BUILD_TIME"); // KUBERNETES
-    const auto machine_address = getMachineIpAddress();
-    std::vector<std::string> pod_addresses;
+    const auto machine_address = get_machine_addr(interface);
+    std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
+
+
+    std::vector<address> pod_addresses;
     if (build_time) {
-        std::this_thread::sleep_for(std::chrono::seconds(5)); // give time for others to start
-        pod_addresses = getPodIps(build_time);
+        const auto pod_name = get_pod_name();
+        update_pod_label(pod_name, machine_address.mac_str);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        pod_addresses = get_pod_ips(build_time);
     } else {
         pod_addresses = {
-                "10.0.0.1",
-                "10.0.0.2",
-                "10.0.0.3"
+                address {"10.0.0.1", "" },
+                address {"10.0.0.1", ""  },
+                address {"10.0.0.1", ""  }
         };
     }
 
@@ -101,24 +184,20 @@ int main() {
     }
 
     for (const auto& ip : pod_addresses) {
-        std::cout << "Pod IP: " << ip << std::endl;
+        std::cout << "Pod IP,Mac: " << ip.ip_str << ", " << ip.mac_str  << std::endl;
     }
 
-    const auto interface = getenv("INTERFACE");
-    if (!interface) {
-        std::cerr << "Interface env var is not set!" << std::endl;
-        return EXIT_FAILURE;
-    }
-    char command[256];
-    snprintf(command, sizeof(command),"tc qdisc add dev %s clsact", interface);
-    if (system(command) != 0) {
-        fprintf(stderr, "Failed to execute command: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    printf("Successfully added qdisc to %s\n", interface);
+//    char command[256];
+//    snprintf(command, sizeof(command),"tc qdisc add dev %s clsact", interface);
+//    if (system(command) != 0) {
+//        fprintf(stderr, "Failed to execute command: %s\n", strerror(errno));
+//        return EXIT_FAILURE;
+//    }
+//
+//    printf("Successfully added qdisc to %s\n", interface);
 
     const auto obj = bpf_object__open_file("./obj/kernel.o", nullptr);
+//    obj->bbs
     if (!obj) {
         std::cerr << "Failed to open BPF object file: " << std::strerror(errno) << std::endl;
         return EXIT_FAILURE;
@@ -147,65 +226,95 @@ int main() {
     }
     std::cout << "Attached to XDP on " << interface << std::endl;
 
-    const auto tc_program = bpf_object__find_program_by_name(obj, "tc_hook");
-    if (!tc_program) {
-        std::cerr << "Failed to find TC program: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
+    const bpf_map* addresses_fd = bpf_object__find_map_by_name(obj, "address_array");
+    for (int i = 0; i < pod_addresses.size(); ++i) {
+        unsigned char it = i;
+        std::cout << bpf_map__update_elem(addresses_fd, &it, 1, pod_addresses[i].ip_str.c_str(), pod_addresses[i].ip_str.size(), 0) << std::endl;
     }
-    const auto tc_fd = bpf_program__fd(tc_program);
-
-    struct bpf_tc_hook hook = {};
-    struct bpf_tc_opts opts = {};
-    hook.sz = sizeof(hook);
-    hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_index;
-    opts.sz = sizeof(opts);
-    opts.prog_fd = tc_fd;
-
-    if (bpf_tc_attach(&hook, &opts)) {
-        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    std::cout << "Attached to tc!" << std::endl;
-
-
-    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    if (fd < 0) {
-        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-    struct sockaddr_ll addr{};
-    memset(&addr, 0, sizeof(addr));
-    addr.sll_family = AF_PACKET;
-    addr.sll_protocol = htons(ETH_P_ALL);
-    addr.sll_ifindex = interface_index;
-    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
-        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
-        close(fd);
-        return EXIT_FAILURE;
-    }
-    struct ifreq ifr{};
-    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
-    ifr.ifr_ifindex = interface_index;
-    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
-        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
-        close(fd);
-        return EXIT_FAILURE;
-    }
-
-    char packet[64];
-    memset(packet, 0, sizeof(packet));
 
     while (true) {
-        if (write(fd, packet, sizeof(packet)) < 0) {
-            std::cerr << "Error sending packet: " << std::strerror(errno) << std::endl;
-        } else {
-            std::cout << "64-byte packet sent" << std::endl;
-        }
+//        if (sendto(fd, &packet, 14, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
+//            std::cerr << "Error sending packet: " << std::strerror(errno) << std::endl;
+//        }
+
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 
-    close(fd);
+
+//    const auto tc_program = bpf_object__find_program_by_name(obj, "tc_hook");
+//    if (!tc_program) {
+//        std::cerr << "Failed to find TC program: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    const auto tc_fd = bpf_program__fd(tc_program);
+//
+//    struct bpf_tc_hook hook = {};
+//    struct bpf_tc_opts opts = {};
+//    hook.sz = sizeof(hook);
+//    hook.attach_point = BPF_TC_EGRESS;
+//    hook.ifindex = interface_index;
+//    opts.sz = sizeof(opts);
+//    opts.prog_fd = tc_fd;
+//
+//    if (bpf_tc_attach(&hook, &opts)) {
+//        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    std::cout << "Attached to tc!" << std::endl;
+
+
+
+
+//    int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+//    if (fd < 0) {
+//        std::cerr << "Error creating socket: " << std::strerror(errno) << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//    struct sockaddr_ll addr{};
+//    memset(&addr, 0, sizeof(addr));
+//    addr.sll_family = AF_PACKET;
+//    addr.sll_protocol = htons(ETH_P_ALL);
+//    addr.sll_ifindex = interface_index;
+//    if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
+//        std::cerr << "Error binding socket: " << std::strerror(errno) << std::endl;
+//        close(fd);
+//        return EXIT_FAILURE;
+//    }
+//    struct ifreq ifr{};
+//    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
+//    ifr.ifr_ifindex = interface_index;
+//    if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void*) &ifr, sizeof(ifr)) < 0) {
+//        std::cerr << "Error setting socket options: " << std::strerror(errno) << std::endl;
+//        close(fd);
+//        return EXIT_FAILURE;
+//    }
+
+//    const auto mac = machine_address.mac;
+//    const auto dmac = pod_addresses[0].ip_str.compare(machine_address.ip_str) == 0 ? pod_addresses[1].mac : pod_addresses[0].mac;
+//    std::cout << "MAc: " << mac << ", Dest: " << dmac << std::endl;
+//
+//
+//    char packet[1000];
+//    packet.ether_type = htons(ETH_P_IP);
+//
+//    const auto log_ring_fd = bpf_object__find_map_fd_by_name(obj, "output_buf");
+//    if (log_ring_fd < 0) {
+//        std::cerr << "Can't open bpf map" << std::endl;
+//        return EXIT_FAILURE;
+//    }
+//
+//    const auto log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
+//    std::cout << "Got log ring: " << log_ring << std::endl;
+//
+//    std::thread thread([&]() {
+//        while (true) {
+//            const auto error = ring_buffer__poll(log_ring, 200);
+//            if (error < 0) std::cerr << "Error polling!" << std::endl;
+//        }
+//    });
+//
+
+//    close(fd);
     close(bpf_fd);
     std::cout << "Exiting program!" << std::endl;
     return 0;

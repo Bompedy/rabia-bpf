@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     libelf-dev \
     zlib1g-dev \
     pkgconf \
+    bpftrace \
+    trace-cmd \
     nlohmann-json3-dev
 
 RUN git clone https://github.com/libbpf/libbpf.git
