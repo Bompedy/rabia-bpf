@@ -31,15 +31,15 @@ SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
     int error;
     int index = 0;
+    print("hello");
 //    bpf_map_lookup_elem(&addresses, 0);
 //    while (error == 0) {
 //        error = bpf_map_lookup_elem(&addresses, 0);
 //    }
-    if (__sync_bool_compare_and_swap(&commit_index, -1, 0)) {
-
-        //init shit
-        return XDP_PASS;
-    }
+//    if (__sync_bool_compare_and_swap(&commit_index, -1, 0)) {
+//
+//        return XDP_PASS;
+//    }
     return XDP_PASS;
 }
 
