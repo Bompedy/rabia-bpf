@@ -28,14 +28,6 @@ struct address {
     uint8_t mac[6];
 };
 
-std::string execute_command(const std::string& command) {
-    std::array<char, 128> buffer{};
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
-    if (!pipe) throw std::runtime_error("popen() failed!");
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) result += buffer.data();
-    return result;
-}
 
 std::string mac_to_string(const unsigned char *mac, size_t len) {
     std::ostringstream oss;
@@ -82,69 +74,8 @@ address get_machine_addr(const std::string& interface_name) {
     return result;
 }
 
-std::string get_pod_name() {
-    std::string command = "curl -s -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
-                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
-                          "https://kubernetes.default.svc/api/v1/namespaces/default/pods";
-    const auto result = execute_command(command);
-    try {
-        auto j = nlohmann::json::parse(result);
-        auto items = j["items"];
-
-        for (const auto& item : items) {
-            std::string current_pod_name = item["metadata"]["name"];
-            // Assuming we are interested in the pod whose hostname matches the current pod's name
-            if (current_pod_name == std::string(getenv("HOSTNAME"))) {
-                return current_pod_name;
-            }
-        }
-    } catch (const nlohmann::json::exception& e) {
-        std::cerr << "JSON parsing error: " << e.what() << std::endl;
-    }
-
-    throw std::runtime_error("Pod name not found");
-}
 
 
-void update_pod_label(const std::string &pod_name, const std::string &mac_address) {
-    const auto command = "curl -X PATCH https://kubernetes.default.svc/api/v1/namespaces/default/pods/" + pod_name + " "
-                          "-H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
-                          "-H \"Content-Type: application/json-patch+json\" "
-                          "-d '[{\"op\": \"add\", \"path\": \"/metadata/labels/mac-address\", \"value\": \"" + mac_address + "\"}]' "
-                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
-    const auto result = execute_command(command);
-}
-
-std::vector<address> get_pod_ips(const std::string& build_time) {
-    std::vector<address> matching_ips;
-    const auto command = "curl -k -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" "
-                          "--cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt "
-                          "https://kubernetes.default.svc/api/v1/namespaces/default/pods";
-    const auto result = execute_command(command);
-    try {
-        auto j = nlohmann::json::parse(result);
-        auto items = j["items"];
-
-        for (const auto& item : items) {
-            std::string mac_addr = item["metadata"]["labels"]["mac-address"];
-            std::string pod_build_time = item["metadata"]["labels"]["build-time"];
-            std::string pod_ip = item["status"]["podIP"];
-            address addy {pod_ip, mac_addr };
-            assert(std::sscanf(mac_addr.c_str(), "%hhx-%hhx-%hhx-%hhx-%hhx-%hhx", addy.mac + 0, addy.mac + 1, addy.mac + 2, addy.mac + 3, addy.mac + 4, addy.mac + 5) == 6);
-            if (pod_build_time == build_time) {
-                for (int i = 0; i < 6; ++i) {
-                    std::cout << i << ": " << int(addy.mac[i]) << std::endl;
-                }
-
-                matching_ips.push_back(addy);
-            }
-        }
-    } catch (const nlohmann::json::exception& e) {
-        std::cerr << "JSON parsing error: " << e.what() << std::endl;
-    }
-
-    return matching_ips;
-}
 
 int handle_event(void* ctx, void* data, size_t size) {
     std::cout << "Log: " << reinterpret_cast<char*>(data) << std::endl;
@@ -158,24 +89,15 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    const auto build_time = getenv("BUILD_TIME"); // KUBERNETES
     const auto machine_address = get_machine_addr(interface);
     std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
 
 
-    std::vector<address> pod_addresses;
-    if (build_time) {
-        const auto pod_name = get_pod_name();
-        update_pod_label(pod_name, machine_address.mac_str);
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        pod_addresses = get_pod_ips(build_time);
-    } else {
-        pod_addresses = {
-                address {"10.0.0.1", "" },
-                address {"10.0.0.1", ""  },
-                address {"10.0.0.1", ""  }
-        };
-    }
+    std::vector<address> pod_addresses = {
+            address{"10.0.0.1", ""},
+            address{"10.0.0.1", ""},
+            address{"10.0.0.1", ""}
+    };
 
     if (pod_addresses.empty()) {
         std::cout << "Can't find any ips!" << std::endl;
