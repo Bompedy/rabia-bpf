@@ -13,11 +13,11 @@ all: clean build run
 build:
 	mkdir -p obj
 	clang-15 -O2 -target bpf -g -c $(KERNEL_IN_FILE) -o $(KERNEL_OUT_FILE)
-	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -lelf -lbpf -lstdc++ -lz
+	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -I$(USER_SRC_DIR) -lelf -lbpf -lstdc++ -lz
 
 gen: build
-	rm -f src/user/gen.c
-	bpftool gen skeleton obj/kernel.o > src/user/gen.c
+	rm -f src/user/gen.h
+	bpftool gen skeleton obj/kernel.o > src/user/gen.h
 
 run:
 	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
