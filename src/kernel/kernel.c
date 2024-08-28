@@ -7,12 +7,12 @@ struct {
     __uint(max_entries, 4096);
 } output_buf SEC(".maps");
 
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __type(key, int);
-    __type(value, int);
-    __uint(max_entries, 1);
-} counter_map SEC(".maps");
+//struct {
+//    __uint(type, BPF_MAP_TYPE_ARRAY);
+//    __type(key, int);
+//    __type(value, int);
+//    __uint(max_entries, 1);
+//} counter_map SEC(".maps");
 
 
 //struct {
@@ -23,7 +23,8 @@ struct {
 //} address_array SEC(".maps");
 
 #define PAXOS_PORT 6969
-unsigned long commit_index = -1;
+unsigned int counter = 0L;
+unsigned long commit_index = 0L;
 unsigned long something[250];
 
 
@@ -37,24 +38,10 @@ char max_addresses = 0;
 SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
     int index = 0;
-    int key = 0;
-    int *counter;
 
     // Look up the counter value
 
-    counter = bpf_map_lookup_elem(&counter_map, &key);
-    if (counter) {
-        // Increment the counter
-        (*counter)++;
-        // Optionally print the new counter value to the ring buffer
-        char message[64];
-        __builtin_snprintf(message, sizeof(message), "Counter: %d", *counter);
-        print(message);
-    } else {
-        // Optionally handle the case where the counter is not found
-        print("Counter map lookup failed");
-    }
-
+   counter += 1;
 
     print("hello");
 //    bpf_map_lookup_elem(&addresses, 0);
