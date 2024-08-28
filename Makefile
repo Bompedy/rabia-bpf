@@ -6,14 +6,20 @@ USER_SRC_FILES = $(wildcard $(USER_SRC_DIR)/*.cpp)
 #USER_IN_FILE = src/user/user.cpp
 USER_OUT_FILE = obj/user
 
-.PHONY: all clean
+.PHONY: all clean build run
 
-all: clean build
+all: clean build run
 
 build:
 	mkdir -p obj
 	clang-15 -O2 -target bpf -g -c $(KERNEL_IN_FILE) -o $(KERNEL_OUT_FILE)
-	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -I/usr/include/nlohmann -lelf -lbpf -lstdc++ -lz
+	clang-15 -o $(USER_OUT_FILE) $(USER_SRC_FILES) -lelf -lbpf -lstdc++ -lz
+
+gen: build
+	rm -f src/user/gen.c
+	bpftool gen skeleton obj/kernel.o > src/user/gen.c
+
+run:
 	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
 
 clean:

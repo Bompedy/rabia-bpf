@@ -20,12 +20,8 @@ unsigned long commit_index = -1;
 unsigned long something[250];
 
 
-struct address {
-    char host[4];
-};
 
 char max_addresses = 0;
-struct address addresses[10];
 
 
 #define print(message) bpf_ringbuf_output(&output_buf, message, sizeof(message), 0)
