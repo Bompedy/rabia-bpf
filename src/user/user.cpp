@@ -112,16 +112,10 @@ int main() {
         std::cout << "Pod IP,Mac: " << ip.ip_str << ", " << ip.mac_str  << std::endl;
     }
 
+
     const auto skeleton = kernel__open_and_load();
     if (!skeleton) {
         std::cerr << "Failed to load bpf skeleton" << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    const auto attach_error = kernel__attach(skeleton);
-    if (attach_error) {
-        std::cerr << "Failed to attach skeleton: " << strerror(-attach_error) << std::endl;
-        kernel__destroy(skeleton);
         return EXIT_FAILURE;
     }
 
@@ -131,6 +125,19 @@ int main() {
         kernel__destroy(skeleton);
         return EXIT_FAILURE;
     }
+
+    const auto xdp_fd = bpf_program__fd(skeleton->progs.xdp_hook);
+    if (bpf_xdp_attach(interface_index, xdp_fd, 0, nullptr) < 0) {
+        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+
+//    const auto attach_error = kernel__attach(skeleton);
+//    if (attach_error) {
+//        std::cerr << "Failed to attach skeleton: " << strerror(-attach_error) << std::endl;
+//        kernel__destroy(skeleton);
+//        return EXIT_FAILURE;
+//    }
 
     const auto log_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "output_buf");
     if (log_ring_fd < 0) {
