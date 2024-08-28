@@ -8,12 +8,12 @@ struct {
 } output_buf SEC(".maps");
 
 
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __type(key, unsigned char);
-    __type(value, unsigned char[4]);
-    __uint(max_entries, 10);
-} address_array SEC(".maps");
+//struct {
+//    __uint(type, BPF_MAP_TYPE_ARRAY);
+//    __type(key, unsigned char);
+//    __type(value, unsigned char[4]);
+//    __uint(max_entries, 10);
+//} address_array SEC(".maps");
 
 #define PAXOS_PORT 6969
 unsigned long commit_index = -1;
@@ -35,7 +35,7 @@ SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
     int error;
     int index = 0;
-    bpf_map_lookup_elem(&addresses, 0);
+//    bpf_map_lookup_elem(&addresses, 0);
 //    while (error == 0) {
 //        error = bpf_map_lookup_elem(&addresses, 0);
 //    }

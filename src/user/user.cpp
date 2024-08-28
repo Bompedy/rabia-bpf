@@ -152,7 +152,6 @@ int handle_event(void* ctx, void* data, size_t size) {
 }
 
 int main() {
-
     const auto interface = getenv("INTERFACE");
     if (!interface) {
         std::cerr << "Interface env var is not set!" << std::endl;
@@ -226,11 +225,11 @@ int main() {
     }
     std::cout << "Attached to XDP on " << interface << std::endl;
 
-    const bpf_map* addresses_fd = bpf_object__find_map_by_name(obj, "address_array");
-    for (int i = 0; i < pod_addresses.size(); ++i) {
-        unsigned char it = i;
-        std::cout << bpf_map__update_elem(addresses_fd, &it, 1, pod_addresses[i].ip_str.c_str(), pod_addresses[i].ip_str.size(), 0) << std::endl;
-    }
+//    const bpf_map* addresses_fd = bpf_object__find_map_by_name(obj, "address_array");
+//    for (int i = 0; i < pod_addresses.size(); ++i) {
+//        unsigned char it = i;
+//        std::cout << bpf_map__update_elem(addresses_fd, &it, 1, pod_addresses[i].ip_str.c_str(), pod_addresses[i].ip_str.size(), 0) << std::endl;
+//    }
 
     while (true) {
 //        if (sendto(fd, &packet, 14, 0, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
