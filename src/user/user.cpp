@@ -21,6 +21,8 @@
 #include <netinet/ether.h>
 #include <netinet/udp.h>
 #include <vector>
+#include <algorithm>
+#include <iomanip>
 
 struct address {
     std::string ip_str;
