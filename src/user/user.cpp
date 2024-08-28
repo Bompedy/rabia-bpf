@@ -159,6 +159,7 @@ int main() {
 
     while (true) {
         const auto error = ring_buffer__poll(log_ring, 200);
+        skeleton->bss->counter = 70;
         if (error < 0) std::cerr << "Error polling!" << std::endl;
     }
 
