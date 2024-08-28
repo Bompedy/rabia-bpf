@@ -17,6 +17,7 @@ build:
 	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
 
 clean:
+	sudo ip link set dev $(INTERFACE) xdp off
 	rm -f $(KERNEL_OUT_FILE) $(USER_OUT_FILE)
 	rm -rf obj
 

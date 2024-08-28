@@ -94,9 +94,10 @@ int main() {
 
 
     std::vector<address> pod_addresses = {
-            address{"10.0.0.1", ""},
-            address{"10.0.0.1", ""},
-            address{"10.0.0.1", ""}
+            address{"10.10.1.1", "b0-26-28-74-d4-b1"}
+//            ,
+//            address{"10.0.0.1", ""},
+//            address{"10.0.0.1", ""}
     };
 
     if (pod_addresses.empty()) {
