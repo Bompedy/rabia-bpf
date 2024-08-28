@@ -12,7 +12,6 @@
 #include <thread>
 #include <chrono>
 #include <string>
-#include <nlohmann/json.hpp>
 #include <cstdio>
 #include <stdexcept>
 #include <array>
@@ -21,6 +20,7 @@
 #include <netinet/ip.h>
 #include <netinet/ether.h>
 #include <netinet/udp.h>
+#include <vector>
 
 struct address {
     std::string ip_str;
