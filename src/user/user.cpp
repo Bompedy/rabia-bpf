@@ -140,19 +140,27 @@ int main() {
     }
     const auto log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
     std::cout << "Got log ring: " << log_ring << std::endl;
-    std::thread thread([&]() {
-        while (true) {
-            std::cout << "poll it" << std::endl;
-            const auto error = ring_buffer__poll(log_ring, 200);
-            std::cout << "got nothing" << std::endl;
-            if (error < 0) std::cerr << "Error polling!" << std::endl;
-        }
-    });
+//    std::thread thread([&]() {
+//        while (true) {
+//            std::cout << "poll it" << std::endl;
+//            const auto error = ring_buffer__poll(log_ring, 200);
+//            std::cout << "got nothing" << std::endl;
+//            if (error < 0) std::cerr << "Error polling!" << std::endl;
+//        }
+//    });
+//    thread.join();
 
     while (true) {
-        std::cout << "test" << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::cout << "poll it" << std::endl;
+        const auto error = ring_buffer__poll(log_ring, 200);
+        std::cout << "got nothing" << std::endl;
+        if (error < 0) std::cerr << "Error polling!" << std::endl;
     }
+
+//    while (true) {
+//        std::cout << "test" << std::endl;
+//        std::this_thread::sleep_for(std::chrono::seconds(3));
+//    }
 
     ring_buffer__free(log_ring);
     kernel__detach(skeleton);
