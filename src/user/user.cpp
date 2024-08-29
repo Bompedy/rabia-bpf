@@ -213,10 +213,10 @@ int main() {
 
 
     skeleton->bss->counter = 70;
-//    while (true) {
-//        const auto error = ring_buffer__poll(log_ring, 200);
-//        if (error < 0) std::cerr << "Error polling!" << std::endl;
-//    }
+    while (true) {
+        const auto error = ring_buffer__poll(log_ring, 200);
+        if (error < 0) std::cerr << "Error polling!" << std::endl;
+    }
 
 //    while (true) {
 //        std::cout << "test" << std::endl;
