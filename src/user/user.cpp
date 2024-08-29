@@ -197,7 +197,7 @@ int main() {
 
     struct sockaddr_ll sadr_ll;
     sadr_ll.sll_family = AF_PACKET;
-    sadr_ll.sll_protocol = htons(ETH_P_ALL);
+    sadr_ll.sll_protocol = htons(0x9000);
     sadr_ll.sll_ifindex = interface_index;
     sadr_ll.sll_halen = ETH_ALEN;
     memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
