@@ -31,7 +31,6 @@ struct address {
     uint8_t mac[6];
 };
 
-
 std::string mac_to_string(const unsigned char *mac, size_t len) {
     std::ostringstream oss;
     for (size_t i = 0; i < len; ++i) {
