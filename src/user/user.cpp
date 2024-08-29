@@ -164,7 +164,7 @@ int main() {
 //        }
 //    });
 //    thread.join();
-    int sock = socket(AF_INET, SOCK_RAW, 0);
+    int sock = socket(AF_INET, SOCK_RAW, htons(ETH_P_ALL));
     if (sock < 0) {
         std::cout << "socket" << std::endl;
         return EXIT_FAILURE;
@@ -177,7 +177,7 @@ int main() {
     struct ethhdr *eth = (struct ethhdr*) buffer;
     memcpy(eth->h_source, machine_address.mac, 6);
     memcpy(eth->h_dest, MULTICAST_ADDR, 6);
-    eth->h_proto = htons(ETH_P_IP);
+    eth->h_proto = htons(0x9000);
 
     buffer[sizeof(struct ethhdr)] = 0x0F;
 
