@@ -20,7 +20,7 @@ gen: build
 	bpftool gen skeleton obj/kernel.o > src/user/gen.h
 
 run:
-	INTERFACE=$(INTERFACE) ./$(USER_OUT_FILE)
+	INTERFACE=$(INTERFACE) sudo ./$(USER_OUT_FILE)
 
 clean:
 	sudo ip link set dev $(INTERFACE) xdp off
