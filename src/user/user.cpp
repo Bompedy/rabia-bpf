@@ -179,7 +179,7 @@ int main() {
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-    if (ioctl(sock, SIOCGIFINDEX, &ifr) < 0) {
+    if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
         printf("errno=%d\n", errno);
         return EXIT_FAILURE;
     }
@@ -189,16 +189,18 @@ int main() {
     memset(buffer, 0, sizeof(struct ethhdr) + 1);
 
     struct ethhdr *eth = (struct ethhdr*) buffer;
-    memcpy(eth->h_source, machine_address.mac, 6);
-    memcpy(eth->h_dest, MULTICAST_ADDR, 6);
+    memset(eth->h_dest, 0xFF, ETH_ALEN);
+    memcpy(eth->h_source, machine_address.mac, ETH_ALEN);
     eth->h_proto = htons(0x9000);
 
     buffer[sizeof(struct ethhdr)] = 0x0F;
 
     struct sockaddr_ll sadr_ll;
+    sadr_ll.sll_family = AF_PACKET;
+    sadr_ll.sll_protocol = htons(ETH_P_ALL);
     sadr_ll.sll_ifindex = interface_index;
     sadr_ll.sll_halen = ETH_ALEN;
-    memcpy(sadr_ll.sll_addr, MULTICAST_ADDR, 6);
+    memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
 
     int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
     if(sent < 0) {
