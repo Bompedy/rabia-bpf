@@ -166,7 +166,7 @@ int main() {
 //    thread.join();
     int sock = socket(AF_INET, SOCK_RAW, htons(ETH_P_ALL));
     if (sock < 0) {
-        std::cout << "socket" << std::endl;
+        printf("errno=%d\n", errno);
         return EXIT_FAILURE;
     }
 
