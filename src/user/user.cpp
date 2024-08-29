@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <linux/if_ether.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <cstring>
 #include <cerrno>
 #include <thread>
@@ -30,6 +31,8 @@ struct address {
     std::string mac_str;
     uint8_t mac[6];
 };
+
+const uint8_t MULTICAST_ADDR[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 std::string mac_to_string(const unsigned char *mac, size_t len) {
     std::ostringstream oss;
@@ -76,8 +79,14 @@ address get_machine_addr(const std::string& interface_name) {
     return result;
 }
 
-
-
+uint16_t checksum(uint16_t* buffer, int word) {
+    uint64_t sum;
+    for(sum = 0; word > 0; word--)
+        sum += htons(*(buffer)++);
+    sum = ((sum >> 16) + (sum & 0xFFFF));
+    sum += (sum >> 16);
+    return (uint16_t) (~sum);
+}
 
 int handle_event(void* ctx, void* data, size_t size) {
     std::cout << "Log: " << reinterpret_cast<char*>(data) << std::endl;
@@ -155,12 +164,43 @@ int main() {
 //        }
 //    });
 //    thread.join();
+    int sock = socket(AF_INET, SOCK_RAW);
+    if (sock < 0) {
+        std::cout << "socket" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    int size = sizeof(struct ethhdr) + 1;
+    uint8_t *buffer = (uint8_t*) malloc(size);
+    memset(buffer, 0, sizeof(struct ethhdr) + 1);
+
+    struct ethhdr *eth = (struct ethhdr*) buffer;
+    memcpy(eth.h_source, machine_address.mac, 6);
+    memcpy(eth.h_dest, MULTICAST_ADDR, 6);
+    eth.h_proto = htons(ETH_P_IP);
+
+    (buffer + sizeof(struct ethhdr)) = 0x0F;
+
+    struct sockaddr_ll sadr_ll;
+    sadr_ll.sll_ifindex = interface_index;
+    sadr_ll.sll_halen = ETH_ALEN;
+    memcpy(sadr_ll.sll_addr, MULTICAST_ADDR, 6);
+
+    int sent = sendto(sock, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
+    if(send_len < 0) {
+        printf("sent=%d, errno=%d\n", send_len, errno);
+        return EXIT_FAILURE;
+    }
+    printf("sent=%d\n", send_len);
+
+
+
 
     skeleton->bss->counter = 70;
-    while (true) {
-        const auto error = ring_buffer__poll(log_ring, 200);
-        if (error < 0) std::cerr << "Error polling!" << std::endl;
-    }
+//    while (true) {
+//        const auto error = ring_buffer__poll(log_ring, 200);
+//        if (error < 0) std::cerr << "Error polling!" << std::endl;
+//    }
 
 //    while (true) {
 //        std::cout << "test" << std::endl;
