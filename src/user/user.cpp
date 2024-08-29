@@ -164,8 +164,22 @@ int main() {
 //        }
 //    });
 //    thread.join();
-    int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    if (sock < 0) {
+//    std::thread thread_read([&]() {
+//
+//    });
+//    std::thread thread_write([&]() {
+//
+//    });
+    int sock_write = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    if (sock_write < 0) {
+        printf("errno=%d\n", errno);
+        return EXIT_FAILURE;
+    }
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
+    if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
         printf("errno=%d\n", errno);
         return EXIT_FAILURE;
     }
@@ -186,7 +200,7 @@ int main() {
     sadr_ll.sll_halen = ETH_ALEN;
     memcpy(sadr_ll.sll_addr, MULTICAST_ADDR, 6);
 
-    int sent = sendto(sock, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
+    int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
     if(sent < 0) {
         printf("sent=%d, errno=%d\n", sent, errno);
         return EXIT_FAILURE;
