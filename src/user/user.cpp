@@ -164,7 +164,7 @@ int main() {
 //        }
 //    });
 //    thread.join();
-    int sock = socket(AF_INET, SOCK_RAW, htons(ETH_P_ALL));
+    int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (sock < 0) {
         printf("errno=%d\n", errno);
         return EXIT_FAILURE;
