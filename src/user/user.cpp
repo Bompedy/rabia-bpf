@@ -179,7 +179,7 @@ int main() {
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-    if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+    if (ioctl(sock, SIOCGIFINDEX, &ifr) < 0) {
         printf("errno=%d\n", errno);
         return EXIT_FAILURE;
     }
