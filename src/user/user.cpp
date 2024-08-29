@@ -175,9 +175,9 @@ int main() {
     memset(buffer, 0, sizeof(struct ethhdr) + 1);
 
     struct ethhdr *eth = (struct ethhdr*) buffer;
-    memcpy(eth.h_source, machine_address.mac, 6);
-    memcpy(eth.h_dest, MULTICAST_ADDR, 6);
-    eth.h_proto = htons(ETH_P_IP);
+    memcpy(eth->h_source, machine_address.mac, 6);
+    memcpy(eth->h_dest, MULTICAST_ADDR, 6);
+    eth->h_proto = htons(ETH_P_IP);
 
     (buffer + sizeof(struct ethhdr)) = 0x0F;
 
