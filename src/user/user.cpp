@@ -187,11 +187,11 @@ int main() {
     memcpy(sadr_ll.sll_addr, MULTICAST_ADDR, 6);
 
     int sent = sendto(sock, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
-    if(send_len < 0) {
-        printf("sent=%d, errno=%d\n", send_len, errno);
+    if(sent < 0) {
+        printf("sent=%d, errno=%d\n", sent, errno);
         return EXIT_FAILURE;
     }
-    printf("sent=%d\n", send_len);
+    printf("sent=%d\n", sent);
 
 
 
