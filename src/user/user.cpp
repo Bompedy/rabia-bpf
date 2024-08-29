@@ -164,7 +164,7 @@ int main() {
 //        }
 //    });
 //    thread.join();
-    int sock = socket(AF_INET, SOCK_RAW);
+    int sock = socket(AF_INET, SOCK_RAW, 0);
     if (sock < 0) {
         std::cout << "socket" << std::endl;
         return EXIT_FAILURE;
@@ -179,7 +179,7 @@ int main() {
     memcpy(eth->h_dest, MULTICAST_ADDR, 6);
     eth->h_proto = htons(ETH_P_IP);
 
-    (buffer + sizeof(struct ethhdr)) = 0x0F;
+    buffer[sizeof(struct ethhdr)] = 0x0F;
 
     struct sockaddr_ll sadr_ll;
     sadr_ll.sll_ifindex = interface_index;
