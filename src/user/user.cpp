@@ -199,14 +199,14 @@ int main() {
             memset(eth->h_dest, 0xFF, ETH_ALEN);
             const uint8_t hardcoded_mac[ETH_ALEN] = { 0x14, 0x58, 0xd0, 0x58, 0xdf, 0xe3 };
             memcpy(eth->h_source, hardcoded_mac, ETH_ALEN);
-            eth->h_proto = htons(0xD0D0);
+            eth->h_proto = htons(ETH_P_IP);
 
             buffer[sizeof(struct ethhdr)] = 0x0F;
 
             struct sockaddr_ll sadr_ll;
             memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
             sadr_ll.sll_family = AF_PACKET;
-            sadr_ll.sll_protocol = htons(0xD0D0);
+            sadr_ll.sll_protocol = htons(ETH_P_IP);
             sadr_ll.sll_ifindex = interface_index;
             sadr_ll.sll_halen = ETH_ALEN;
             memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
