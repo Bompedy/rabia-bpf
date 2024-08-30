@@ -32,8 +32,6 @@ struct address {
     uint8_t mac[6];
 };
 
-const uint8_t MULTICAST_ADDR[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-
 std::string mac_to_string(const unsigned char *mac, size_t len) {
     std::ostringstream oss;
     for (size_t i = 0; i < len; ++i) {
@@ -71,21 +69,13 @@ address get_machine_addr(const std::string& interface_name) {
             if (ifa->ifa_addr->sa_family == AF_PACKET) {
                 auto *sll = (struct sockaddr_ll *)ifa->ifa_addr;
                 result.mac_str = mac_to_string(sll->sll_addr, sll->sll_halen);
+                memcpy(result.mac, sll->sll_addr, sll->sll_halen);
             }
         }
     }
 
     freeifaddrs(ifaddr_struct);
     return result;
-}
-
-uint16_t checksum(uint16_t* buffer, int word) {
-    uint64_t sum;
-    for(sum = 0; word > 0; word--)
-        sum += htons(*(buffer)++);
-    sum = ((sum >> 16) + (sum & 0xFFFF));
-    sum += (sum >> 16);
-    return (uint16_t) (~sum);
 }
 
 int handle_event(void* ctx, void* data, size_t size) {
@@ -105,10 +95,9 @@ int main() {
 
 
     std::vector<address> pod_addresses = {
-            address{"10.10.1.1", "b0-26-28-74-d4-b1"}
-//            ,
-//            address{"10.0.0.1", ""},
-//            address{"10.0.0.1", ""}
+            {"10.10.1.1", "ec-b1-d7-85-7a-23", {0xec, 0xb1, 0xd7, 0x85, 0x7a, 0x23}},
+            {"10.10.1.2", "14-58-d0-58-4f-b3", {0x14, 0x58, 0xd0, 0x58, 0x4f, 0xb3}},
+            {"10.10.1.3", "ec-b1-d7-85-5a-43", {0xec, 0xb1, 0xd7, 0x85, 0x5a, 0x43}}
     };
 
     if (pod_addresses.empty()) {
@@ -140,13 +129,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-//    const auto attach_error = kernel__attach(skeleton);
-//    if (attach_error) {
-//        std::cerr << "Failed to attach skeleton: " << strerror(-attach_error) << std::endl;
-//        kernel__destroy(skeleton);
-//        return EXIT_FAILURE;
-//    }
-
     const auto log_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "output_buf");
     if (log_ring_fd < 0) {
         std::cerr << "Can't open bpf map" << std::endl;
@@ -155,71 +137,60 @@ int main() {
     }
     const auto log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
     std::cout << "Got log ring: " << log_ring << std::endl;
-//    std::thread thread([&]() {
-//        while (true) {
-//            std::cout << "poll it" << std::endl;
-//            const auto error = ring_buffer__poll(log_ring, 200);
-//            std::cout << "got nothing" << std::endl;
-//            if (error < 0) std::cerr << "Error polling!" << std::endl;
-//        }
-//    });
-//    thread.join();
-//    std::thread thread_read([&]() {
-//
-//    });
-//    std::thread thread_write([&]() {
-//
-//    });
-
 
 
 
     skeleton->bss->counter = 70;
     std::thread write_thread([&]() {
+        int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));
+        if (sock_write < 0) {
+            printf("errno=%d\n", errno);
+            return EXIT_FAILURE;
+        }
+
+        struct ifreq ifr;
+        memset(&ifr, 0, sizeof(ifr));
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
+        if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+            printf("errno=%d\n", errno);
+            return EXIT_FAILURE;
+        }
+
         while (true) {
-            int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));
-            if (sock_write < 0) {
-                printf("errno=%d\n", errno);
-                return EXIT_FAILURE;
-            }
+            auto i = 0;
+            for (const auto &item: pod_addresses) {
+                ++i;
+                const auto target = item;
+                if (std::memcmp(target.mac, machine_address.mac, 6) == 0) continue;
+                struct ethhdr eth{};
+                memset(&eth, 0, sizeof(eth));
+                memcpy(eth.h_dest, target.mac, ETH_ALEN);
+                memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
+                eth.h_proto = htons(0xD0D0);
 
-            struct ifreq ifr;
-            memset(&ifr, 0, sizeof(ifr));
-            snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-            if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
-                printf("errno=%d\n", errno);
-                return EXIT_FAILURE;
-            }
-
-            struct ethhdr eth;
-            memset(&eth, 0, sizeof(eth));
-            memset(eth.h_dest, 0xFF, ETH_ALEN);
-            const uint8_t hardcoded_mac[ETH_ALEN] = { 0x14, 0x58, 0xd0, 0x58, 0xdf, 0xe3 };
-            memcpy(eth.h_source, hardcoded_mac, ETH_ALEN);
-            eth.h_proto = htons(0xD0D0);
-
-            int size = sizeof(struct ethhdr) + 65;
-            uint8_t *buffer = (uint8_t*) malloc(size);
-            memset(buffer, 0, sizeof(struct ethhdr) + 65);
-            memcpy(buffer, &eth, sizeof(eth));
+                int size = sizeof(struct ethhdr) + 65;
+                uint8_t *buffer = (uint8_t*) malloc(size);
+                memset(buffer, 0, sizeof(struct ethhdr) + 65);
+                memcpy(buffer, &eth, sizeof(eth));
 
 
 //            struct ethhdr *eth = (struct ethhdr*) buffer;
 
-            struct sockaddr_ll sadr_ll;
-            memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
-            sadr_ll.sll_family = AF_PACKET;
-            sadr_ll.sll_protocol = htons(0xD0D0);
-            sadr_ll.sll_ifindex = interface_index;
-            sadr_ll.sll_halen = ETH_ALEN;
-            memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
+                struct sockaddr_ll sadr_ll;
+                memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
+                sadr_ll.sll_family = AF_PACKET;
+                sadr_ll.sll_protocol = htons(0xD0D0);
+                sadr_ll.sll_ifindex = interface_index;
+                sadr_ll.sll_halen = ETH_ALEN;
+                memcpy(sadr_ll.sll_addr, target.mac, ETH_ALEN);
+                int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
+                if(sent < 0) {
+                    printf("sent to %d=%d, errno=%d\n",i, sent, errno);
+                    return EXIT_FAILURE;
+                }
+                printf("sent=%d\n", sent);
 
-            int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
-            if(sent < 0) {
-                printf("sent=%d, errno=%d\n", sent, errno);
-                return EXIT_FAILURE;
             }
-            printf("sent=%d\n", sent);
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     });
