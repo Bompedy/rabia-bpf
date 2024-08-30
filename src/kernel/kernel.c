@@ -19,23 +19,23 @@ unsigned long commit_index = 0L;
 
 SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
-    print("Packet: ");
+//    print("Packet: ");
     if (skb->len < sizeof(struct ethhdr)) {
         print("Not a packet we want!");
         return XDP_PASS;
     }
 
-    struct ethhdr eth;
-    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
-        print("couldn't load bytes!");
-        return XDP_PASS;
-    }
+//    struct ethhdr eth;
+//    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
+////        print("couldn't load bytes!");
+//        return XDP_PASS;
+//    }
 
 //
 //    for (int i = 0; i < ETH_ALEN; ++i) {
 //        print(&eth.h_source[i]);
 //    }
-    print("Complete!");
+//    print("Complete!");
     return XDP_PASS;
 }
 
