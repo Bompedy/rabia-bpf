@@ -30,11 +30,13 @@ int xdp_hook(struct __sk_buff* skb) {
 //        return XDP_PASS;
 //    }
 
-    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
-//    bpf_printk("\nPacket %d: ", skb->len);
-    bpf_printk("Source MAC address: %d:%d:%d:%d:%d:%d\n",
-               eth->h_source[0], eth->h_source[1], eth->h_source[2],
-               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
+    int len = skb->len;
+
+//    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
+    bpf_printk("\nPacket %d: ", len);
+//    bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+//               eth->h_source[0], eth->h_source[1], eth->h_source[2],
+//               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
 
     return XDP_PASS;
 }
