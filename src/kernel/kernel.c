@@ -18,10 +18,10 @@ unsigned long commit_index = 0L;
 
 
 SEC("xdp")
-int xdp_hook(struct __sk_buff* skb) {
-//    void *data = (void *)(long)skb->data;
-//    void *data_end = (void *)(long)skb->data_end;
-    __u32 len = skb->len;
+int xdp_hook(struct xdp_md* ctx) {
+    void *data = (void *)(long)ctx->data;
+    void *data_end = (void *)(long)ctx->data_end;
+    __u32 len = data_end - data;
     bpf_printk("\nPacket %u: ", len);
     return XDP_PASS;
 }
