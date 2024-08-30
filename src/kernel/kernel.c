@@ -34,11 +34,24 @@ int xdp_hook(struct __sk_buff* skb) {
 //        return XDP_PASS;
 //    }
 
-//
+    char mac_str[18];
+    __u64 data[ETH_ALEN];
+    int len = 0;
+
     for (int i = 0; i < ETH_ALEN; ++i) {
-        int test = eth->h_source[i];
-//        print(&test);
+        data[i] = eth->h_source[i];
     }
+
+    len = bpf_snprintf(mac_str, sizeof(mac_str),
+                       "%02x:%02x:%02x:%02x:%02x:%02x",
+                       data, sizeof(__u64) * ETH_ALEN);
+
+    // Ensure null-termination
+    mac_str[len] = '\0';
+
+
+    print(mac_str);
+
     print("Complete!");
     return XDP_PASS;
 }
