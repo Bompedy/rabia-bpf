@@ -197,7 +197,8 @@ int main() {
 
             struct ethhdr *eth = (struct ethhdr*) buffer;
             memset(eth->h_dest, 0xFF, ETH_ALEN);
-            memcpy(eth->h_source, machine_address.mac, ETH_ALEN);
+            const uint8_t hardcoded_mac[ETH_ALEN] = { 0x14, 0x58, 0xd0, 0x58, 0xdf, 0xe3 };
+            memcpy(eth->h_source, hardcoded_mac, ETH_ALEN);
             eth->h_proto = htons(0xD0D0);
 
             buffer[sizeof(struct ethhdr)] = 0x0F;
