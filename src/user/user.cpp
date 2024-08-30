@@ -198,13 +198,13 @@ int main() {
             struct ethhdr *eth = (struct ethhdr*) buffer;
             memset(eth->h_dest, 0xFF, ETH_ALEN);
             memcpy(eth->h_source, machine_address.mac, ETH_ALEN);
-            eth->h_proto = htons(0x9000);
+            eth->h_proto = htons(0x0800);
 
             buffer[sizeof(struct ethhdr)] = 0x0F;
 
             struct sockaddr_ll sadr_ll;
             sadr_ll.sll_family = AF_PACKET;
-            sadr_ll.sll_protocol = htons(0x9000);
+            sadr_ll.sll_protocol = htons(0x0800);
             sadr_ll.sll_ifindex = interface_index;
             sadr_ll.sll_halen = ETH_ALEN;
             memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
