@@ -29,7 +29,7 @@
 struct address {
     std::string ip_str;
     std::string mac_str;
-    uint8_t mac[6];
+    unsigned char mac[6];
 };
 
 std::string mac_to_string(const unsigned char *mac, size_t len) {

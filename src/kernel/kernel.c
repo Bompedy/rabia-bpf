@@ -13,7 +13,7 @@ struct {
 unsigned int counter = 0;
 unsigned long commit_index = 0L;
 
-char addresses[3][6];
+unsigned char addresses[3][6];
 
 
 #define print(message) bpf_ringbuf_output(&output_buf, message, sizeof(message), 0)
@@ -37,7 +37,7 @@ int xdp_hook(struct xdp_md *ctx) {
 //               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
 
     for (int i = 0; i < 3; ++i) {
-        char* address = addresses[i];
+        unsigned char* address = addresses[i];
         bpf_printk("Addresses %d: %02x:%02x:%02x:%02x:%02x:%02x\n",
                    i,
                    address[0], address[1], address[2],
