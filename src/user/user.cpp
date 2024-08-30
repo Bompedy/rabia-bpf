@@ -170,53 +170,64 @@ int main() {
 //    std::thread thread_write([&]() {
 //
 //    });
-    int sock_write = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    if (sock_write < 0) {
-        printf("errno=%d\n", errno);
-        return EXIT_FAILURE;
-    }
-
-    struct ifreq ifr;
-    memset(&ifr, 0, sizeof(ifr));
-    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-    if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
-        printf("errno=%d\n", errno);
-        return EXIT_FAILURE;
-    }
-
-    int size = sizeof(struct ethhdr) + 1;
-    uint8_t *buffer = (uint8_t*) malloc(size);
-    memset(buffer, 0, sizeof(struct ethhdr) + 1);
-
-    struct ethhdr *eth = (struct ethhdr*) buffer;
-    memset(eth->h_dest, 0xFF, ETH_ALEN);
-    memcpy(eth->h_source, machine_address.mac, ETH_ALEN);
-    eth->h_proto = htons(0x9000);
-
-    buffer[sizeof(struct ethhdr)] = 0x0F;
-
-    struct sockaddr_ll sadr_ll;
-    sadr_ll.sll_family = AF_PACKET;
-    sadr_ll.sll_protocol = htons(0x9000);
-    sadr_ll.sll_ifindex = interface_index;
-    sadr_ll.sll_halen = ETH_ALEN;
-    memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
-
-    int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
-    if(sent < 0) {
-        printf("sent=%d, errno=%d\n", sent, errno);
-        return EXIT_FAILURE;
-    }
-    printf("sent=%d\n", sent);
 
 
 
 
     skeleton->bss->counter = 70;
-    while (true) {
-        const auto error = ring_buffer__poll(log_ring, 200);
-        if (error < 0) std::cerr << "Error polling!" << std::endl;
-    }
+    std::thread write_thread([&]() {
+        while (true) {
+            int sock_write = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+            if (sock_write < 0) {
+                printf("errno=%d\n", errno);
+                return EXIT_FAILURE;
+            }
+
+            struct ifreq ifr;
+            memset(&ifr, 0, sizeof(ifr));
+            snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
+            if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+                printf("errno=%d\n", errno);
+                return EXIT_FAILURE;
+            }
+
+            int size = sizeof(struct ethhdr) + 1;
+            uint8_t *buffer = (uint8_t*) malloc(size);
+            memset(buffer, 0, sizeof(struct ethhdr) + 1);
+
+            struct ethhdr *eth = (struct ethhdr*) buffer;
+            memset(eth->h_dest, 0xFF, ETH_ALEN);
+            memcpy(eth->h_source, machine_address.mac, ETH_ALEN);
+            eth->h_proto = htons(0x9000);
+
+            buffer[sizeof(struct ethhdr)] = 0x0F;
+
+            struct sockaddr_ll sadr_ll;
+            sadr_ll.sll_family = AF_PACKET;
+            sadr_ll.sll_protocol = htons(0x9000);
+            sadr_ll.sll_ifindex = interface_index;
+            sadr_ll.sll_halen = ETH_ALEN;
+            memset(sadr_ll.sll_addr, 0xFF, ETH_ALEN);
+
+            int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
+            if(sent < 0) {
+                printf("sent=%d, errno=%d\n", sent, errno);
+                return EXIT_FAILURE;
+            }
+            printf("sent=%d\n", sent);
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+    });
+    std::thread poll_thread([&]() {
+        while (true) {
+            const auto error = ring_buffer__poll(log_ring, 200);
+            if (error < 0) std::cerr << "Error polling!" << std::endl;
+            else std::cout << "Polling!" << std::endl;
+        }
+    });
+    write_thread.join()
+    poll_thread.join()
+
 
 //    while (true) {
 //        std::cout << "test" << std::endl;
