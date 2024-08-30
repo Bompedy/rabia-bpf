@@ -177,7 +177,7 @@ int main() {
     skeleton->bss->counter = 70;
     std::thread write_thread([&]() {
         while (true) {
-            int sock_write = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+            int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));
             if (sock_write < 0) {
                 printf("errno=%d\n", errno);
                 return EXIT_FAILURE;
