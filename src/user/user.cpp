@@ -226,6 +226,7 @@ int main() {
         }
     });
     write_thread.join();
+    std::cout << "Does it go here1?" << std::endl;
     poll_thread.join();
     std::cout << "Does it go here?" << std::endl;
 
