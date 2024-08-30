@@ -191,15 +191,20 @@ int main() {
                 return EXIT_FAILURE;
             }
 
+            struct ethhdr eth;
+            memset(&eth, 0, sizeof(eth));
+            memset(eth.h_dest, 0xFF, ETH_ALEN);
+            const uint8_t hardcoded_mac[ETH_ALEN] = { 0x14, 0x58, 0xd0, 0x58, 0xdf, 0xe3 };
+            memcpy(eth.h_source, hardcoded_mac, ETH_ALEN);
+            eth.h_proto = htons(0xD0D0);
+
             int size = sizeof(struct ethhdr) + 65;
             uint8_t *buffer = (uint8_t*) malloc(size);
             memset(buffer, 0, sizeof(struct ethhdr) + 65);
+            memcpy(buffer, &eth, sizeof(eth));
 
-            struct ethhdr *eth = (struct ethhdr*) buffer;
-            memset(eth->h_dest, 0xFF, ETH_ALEN);
-            const uint8_t hardcoded_mac[ETH_ALEN] = { 0x14, 0x58, 0xd0, 0x58, 0xdf, 0xe3 };
-            memcpy(eth->h_source, hardcoded_mac, ETH_ALEN);
-            eth->h_proto = htons(0xD0D0);
+
+//            struct ethhdr *eth = (struct ethhdr*) buffer;
 
             struct sockaddr_ll sadr_ll;
             memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
