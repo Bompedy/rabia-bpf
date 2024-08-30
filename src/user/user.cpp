@@ -203,6 +203,7 @@ int main() {
             buffer[sizeof(struct ethhdr)] = 0x0F;
 
             struct sockaddr_ll sadr_ll;
+            memset(sadr_ll, 0, sizeof(struct sockaddr_ll))
             sadr_ll.sll_family = AF_PACKET;
             sadr_ll.sll_protocol = htons(0xD0D0);
             sadr_ll.sll_ifindex = interface_index;
