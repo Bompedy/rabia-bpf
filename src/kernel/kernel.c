@@ -1,6 +1,8 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <linux/bpf_common.h>
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -17,8 +19,19 @@ unsigned long commit_index = 0L;
 
 SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
-    counter += 1;
-    print("hello");
+    void *data = (void *)(long)skb->data;
+    void *data_end = (void *)(long)skb->data_end;
+    if (data + sizeof(struct ethhdr) > data_end) {
+        print("Dropping malformed packet!");
+        return XDP_DROP;
+    }
+
+    struct ethhdr *eth = data;
+    print("Packet: ");
+    for (int i = 0; i < ETH_ALEN; ++i) {
+        print(&eth->h_source[i]);
+    }
+    print("Complete!");
     return XDP_PASS;
 }
 
