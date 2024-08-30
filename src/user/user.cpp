@@ -221,7 +221,6 @@ int main() {
     });
     std::thread poll_thread([&]() {
         while (true) {
-            std::cout << "pol" << std::endl;
             const auto error = ring_buffer__poll(log_ring, 200);
             if (error < 0) std::cerr << "Error polling!" << std::endl;
         }
