@@ -188,7 +188,7 @@ int main() {
                     printf("sent to %d=%d, errno=%d\n",i, sent, errno);
                     return EXIT_FAILURE;
                 }
-                printf("sent=%d\n", sent);
+                printf("sent to %d=%d\n", i,  sent);
 
             }
             std::this_thread::sleep_for(std::chrono::seconds(5));
