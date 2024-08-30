@@ -30,7 +30,7 @@ int xdp_hook(struct __sk_buff* skb) {
 //        return XDP_PASS;
 //    }
 
-    __u32 len = skb->len;
+    __u32 len = skb->data_end - skb->data;
 
 //    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
     bpf_printk("\nPacket %d: ", len);
