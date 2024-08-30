@@ -222,7 +222,6 @@ int main() {
         while (true) {
             const auto error = ring_buffer__poll(log_ring, 200);
             if (error < 0) std::cerr << "Error polling!" << std::endl;
-            else std::cout << "Polling!" << std::endl;
         }
     });
     write_thread.join();
