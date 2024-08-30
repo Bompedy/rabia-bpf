@@ -25,6 +25,9 @@ int xdp_hook(struct __sk_buff* skb) {
         return XDP_PASS;
     }
 
+    struct ethhdr eth;
+    int bytes = bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth));
+
 //    struct ethhdr eth;
 //    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
 ////        print("couldn't load bytes!");
