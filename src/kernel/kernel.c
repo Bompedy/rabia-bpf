@@ -19,25 +19,10 @@ unsigned long commit_index = 0L;
 
 SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
-//    if (skb->len < sizeof(struct ethhdr)) {
-//        bpf_printk("Not a packet we want!\n");
-//        return XDP_PASS;
-//    }
-
-//    struct ethhdr eth;
-//    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
-//        bpf_printk("Failed to load Ethernet header\n");
-//        return XDP_PASS;
-//    }
-
-    __u32 len = skb->data_end - skb->data;
-
-//    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
+    void *data = (void *)(long)skb->data;
+    void *data_end = (void *)(long)skb->data_end;
+    __u32 len = data_end - data;
     bpf_printk("\nPacket %d: ", len);
-//    bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-//               eth->h_source[0], eth->h_source[1], eth->h_source[2],
-//               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
-
     return XDP_PASS;
 }
 
