@@ -227,6 +227,7 @@ int main() {
     });
     write_thread.join();
     poll_thread.join();
+    std::cout << "Does it go here?" << std::endl;
 
 
 //    while (true) {
