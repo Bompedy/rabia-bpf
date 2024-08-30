@@ -26,6 +26,7 @@ int xdp_hook(struct __sk_buff* skb) {
     }
 
     struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
+    print("Converted to eth header!");
 
 //    struct ethhdr eth;
 //    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
