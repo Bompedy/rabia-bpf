@@ -19,10 +19,10 @@ unsigned long commit_index = 0L;
 
 SEC("xdp")
 int xdp_hook(struct __sk_buff* skb) {
-    if (skb->len < sizeof(struct ethhdr)) {
-        bpf_printk("Not a packet we want!\n");
-        return XDP_PASS;
-    }
+//    if (skb->len < sizeof(struct ethhdr)) {
+//        bpf_printk("Not a packet we want!\n");
+//        return XDP_PASS;
+//    }
 
 //    struct ethhdr eth;
 //    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
