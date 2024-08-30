@@ -225,8 +225,8 @@ int main() {
             else std::cout << "Polling!" << std::endl;
         }
     });
-    write_thread.join()
-    poll_thread.join()
+    write_thread.join();
+    poll_thread.join();
 
 
 //    while (true) {
