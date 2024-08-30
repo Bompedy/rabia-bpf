@@ -23,12 +23,13 @@ int xdp_hook(struct xdp_md* ctx) {
     void *data_end = (void *)(long)ctx->data_end;
     __u32 len = data_end - data;
     bpf_printk("\nPacket %u: ", len);
-    if (len >= sizeof(struct ethhdr)) {
+    if (len < sizeof(struct ethhdr)) {
+        return XDP_PASS;
+    }
         struct ethhdr *eth = (struct ethhdr *) data;
         bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
                    eth->h_source[0], eth->h_source[1], eth->h_source[2],
                    eth->h_source[3], eth->h_source[4], eth->h_source[5]);
-    }
     return XDP_PASS;
 }
 
