@@ -13,6 +13,8 @@ struct {
 unsigned int counter = 0;
 unsigned long commit_index = 0L;
 
+char addresses[3][6];
+
 
 #define print(message) bpf_ringbuf_output(&output_buf, message, sizeof(message), 0)
 
@@ -30,9 +32,20 @@ int xdp_hook(struct xdp_md *ctx) {
 //        return XDP_PASS;
 //    }
     struct ethhdr *eth = (struct ethhdr *) data;
-    bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-               eth->h_source[0], eth->h_source[1], eth->h_source[2],
-               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
+//    bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+//               eth->h_source[0], eth->h_source[1], eth->h_source[2],
+//               eth->h_source[3], eth->h_source[4], eth->h_source[5]);
+
+    for (int i = 0; i < 3; ++i) {
+        char* address = addresses[i];
+        bpf_printk("Addresses %d: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   i,
+                   address[0], address[1], address[2],
+                   address[3], address[4], address[5]);
+    }
+
+    struct ethhdr fresh;
+
     return XDP_PASS;
 }
 
