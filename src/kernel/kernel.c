@@ -36,9 +36,10 @@ int xdp_hook(struct __sk_buff* skb) {
 
 //
     for (int i = 0; i < ETH_ALEN; ++i) {
-        print(&eth->h_source[i]);
+        int test = eth->h_source[i];
+        print(&test);
     }
-//    print("Complete!");
+    print("Complete!");
     return XDP_PASS;
 }
 
