@@ -24,12 +24,13 @@ int xdp_hook(struct __sk_buff* skb) {
         return XDP_PASS;
     }
 
-    struct ethhdr eth;
-    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
-        bpf_printk("Failed to load Ethernet header\n");
-        return XDP_PASS;
-    }
+//    struct ethhdr eth;
+//    if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)) < 0) {
+//        bpf_printk("Failed to load Ethernet header\n");
+//        return XDP_PASS;
+//    }
 
+    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
 //    bpf_printk("\nPacket %d: ", skb->len);
     bpf_printk("Source MAC address: %d:%d:%d:%d:%d:%d\n",
                eth.h_source[0], eth.h_source[1], eth.h_source[2],
