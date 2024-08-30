@@ -23,7 +23,7 @@ int xdp_hook(struct __sk_buff* skb) {
         bpf_printk("Not a packet we want!\n");
         return XDP_PASS;
     }
-    struct ethhdr *eth = (struct ethhdr *)(long)skb->data;
+    struct ethhdr *eth = (struct ethhdr *) skb->data;
 
     bpf_printk("\nPacket %d: ", skb->len);
     bpf_printk("Source MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
