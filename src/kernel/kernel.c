@@ -47,7 +47,14 @@ int xdp_hook(struct xdp_md *ctx) {
 
 
     for (int i = 0; i < 3; ++i) {
-        bpf_skb_store_bytes(ctx, 0, addresses[i], ETH_ALEN, 0);
+        char* address = addresses[i];
+        in_eth->h_source[0] = address[0];
+        in_eth->h_source[1] = address[1];
+        in_eth->h_source[2] = address[2];
+        in_eth->h_source[3] = address[3];
+        in_eth->h_source[4] = address[4];
+        in_eth->h_source[5] = address[5];
+//        bpf_skb_store_bytes(ctx, 0, addresses[i], ETH_ALEN, 0);
 //        bpf_skb_store_bytes(ctx, ETH_ALEN, machine_address, ETH_ALEN, 0);
         int result = bpf_clone_redirect(ctx, interface_index, 0);
         if (result) {
