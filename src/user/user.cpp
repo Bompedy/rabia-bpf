@@ -166,13 +166,14 @@ int main() {
 
         while (true) {
             auto i = 0;
-            for (const auto &item: pod_addresses) {
+//            for (const auto &item: pod_addresses) {
                 ++i;
-                const auto target = item;
-                if (std::memcmp(target.mac, machine_address.mac, 6) == 0) continue;
+//                const auto target = item;
+//                if (std::memcmp(target.mac, machine_address.mac, 6) == 0) continue;
+                unsigned char broadcast[6] {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
                 struct ethhdr eth{};
                 memset(&eth, 0, sizeof(eth));
-                memcpy(eth.h_dest, target.mac, ETH_ALEN);
+                memcpy(eth.h_dest, broadcast, ETH_ALEN);
                 memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
                 eth.h_proto = htons(0xD0D0);
 
@@ -190,7 +191,7 @@ int main() {
                 sadr_ll.sll_protocol = htons(0xD0D0);
                 sadr_ll.sll_ifindex = interface_index;
                 sadr_ll.sll_halen = ETH_ALEN;
-                memcpy(sadr_ll.sll_addr, target.mac, ETH_ALEN);
+                memcpy(sadr_ll.sll_addr, broadcast, ETH_ALEN);
                 int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
                 if(sent < 0) {
                     printf("sent to %d=%d, errno=%d\n",i, sent, errno);
@@ -198,7 +199,7 @@ int main() {
                 }
                 printf("sent to %d=%d\n", i,  sent);
 
-            }
+//            }
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     });
