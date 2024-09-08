@@ -17,6 +17,8 @@ struct {
 } output_buf SEC(".maps");
 
 #define PAXOS_PORT 6969
+
+int gg = 0;
 unsigned int counter = 0;
 unsigned long commit_index = 0L;
 
