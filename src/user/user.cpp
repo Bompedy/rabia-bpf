@@ -148,6 +148,7 @@ int main() {
     skeleton->bss->interface_index = interface_index;
     memcpy(skeleton->bss->machine_address, machine_address.mac, ETH_ALEN);
 
+    //
 
     std::thread write_thread([&]() {
         int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));

@@ -1,4 +1,4 @@
-INTERFACE = enp65s0f0np0
+INTERFACE = enp6s0f0
 KERNEL_IN_FILE = src/kernel/kernel.c
 KERNEL_OUT_FILE = obj/kernel.o
 USER_SRC_DIR = src/user
