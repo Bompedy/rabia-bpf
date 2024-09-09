@@ -134,19 +134,15 @@ void send_packet(
     sadr_ll.sll_halen = ETH_ALEN;
     memcpy(sadr_ll.sll_addr, dest, ETH_ALEN);
 
-    auto unsent = sizeof(struct ethhdr) + in_size;
-    std::cout << "Unsent bytes: " << unsent << std::endl;
-    while (unsent != 0) {
-        const auto written = sendto(socket, buffer, unsent, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
+    size_t cursor = 0;
+    while (cursor < size) {
+        const auto written = sendto(socket, buffer + cursor, size - cursor, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
         std::cout << "Wrote: " << written << std::endl;
         if (written < 0) {
             std::cerr << "Error: " << strerror(errno) << std::endl;
             break;
         }
-        if (buffer + written < (buffer + size)) {
-            buffer += written;
-        }
-        unsent -= written;
+        cursor += written;
     }
 
     free(buffer);

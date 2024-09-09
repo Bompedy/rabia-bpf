@@ -187,7 +187,7 @@ int tc_hook(struct __sk_buff *skb) {
 //                bpf_clone_redirect(skb, skb->ifindex, 0);
 //            }
 //
-            return TC_ACT_OK;
+            return TC_ACT_SHOT;
         }
     }
     return TC_ACT_OK;
