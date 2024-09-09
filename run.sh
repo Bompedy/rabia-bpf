@@ -1,4 +1,5 @@
 #!/bin/bash
+git pull
 mkdir -p build
 cd build
 export INTERFACE=enp4s0f1
