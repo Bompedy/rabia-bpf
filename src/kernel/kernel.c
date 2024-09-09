@@ -166,38 +166,6 @@ int tc_hook(struct __sk_buff *skb) {
     return TC_ACT_OK;
 }
 
-/*
- * libbpf: prog 'tc_hook': BPF program load failed: Permission denied
-libbpf: prog 'tc_hook': -- BEGIN PROG LOAD LOG --
-0: R1=ctx(off=0,imm=0) R10=fp0
-; int tc_hook(struct __sk_buff *skb) {
-0: (b7) r0 = 0                        ; R0_w=0
-; void *data = (void *) (long) skb->data;
-1: (61) r2 = *(u32 *)(r1 +76)         ; R1=ctx(off=0,imm=0) R2_w=pkt(off=0,r=0,imm=0)
-; if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
-2: (bf) r3 = r2                       ; R2_w=pkt(off=0,r=0,imm=0) R3_w=pkt(off=0,r=0,imm=0)
-3: (07) r3 += 14                      ; R3_w=pkt(off=14,r=0,imm=0)
-; void *data_end = (void *) (long) skb->data_end;
-4: (61) r1 = *(u32 *)(r1 +80)         ; R1_w=pkt_end(off=0,imm=0)
-; if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
-5: (2d) if r3 > r1 goto pc+29         ; R1_w=pkt_end(off=0,imm=0) R3_w=pkt(off=14,r=14,imm=0)
-; if (in_eth->h_proto == 0x0D0D) {
-6: (71) r1 = *(u8 *)(r2 +12)          ; R1_w=scalar(umax=255,var_off=(0x0; 0xff)) R2_w=pkt(off=0,r=14,imm=0)
-7: (71) r4 = *(u8 *)(r2 +13)          ; R2_w=pkt(off=0,r=14,imm=0) R4_w=scalar(umax=255,var_off=(0x0; 0xff))
-8: (67) r4 <<= 8                      ; R4_w=scalar(umax=65280,var_off=(0x0; 0xff00))
-9: (4f) r4 |= r1                      ; R1_w=scalar(umax=255,var_off=(0x0; 0xff)) R4_w=scalar()
-; if (in_eth->h_proto == 0x0D0D) {
-10: (55) if r4 != 0xd0d goto pc+24    ; R4_w=3341
-; unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
-11: (71) r1 = *(u8 *)(r3 +0)
-invalid access to packet, off=14 size=1, R3(id=0,off=14,r=14)
-R3 offset is outside of the packet
-processed 12 insns (limit 1000000) max_states_per_insn 0 total_states 0 peak_states 0 mark_read 0
--- END PROG LOAD LOG --
-libbpf: prog 'tc_hook': failed to load: -13
-libbpf: failed to load object 'kernel'
-libbpf: failed to load BPF skeleton 'kernel': -13
-Failed to load bpf skeleton*/
 
 
 char _license[] SEC("license") = "GPL";
