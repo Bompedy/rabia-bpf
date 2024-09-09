@@ -102,10 +102,8 @@ void cleanup() {
     hook.ifindex = interface_idx;
     opts.sz = sizeof(opts);
     opts.prog_fd = tc_fd;
-    const struct bpf_tc_hook* copy_hook = &hook;
-    const struct bpf_tc_opts* copy_opts = &opts;
-    if (bpf_tc_detach(copy_hook, copy_opts) < 0) {
-        std::cerr << "Failed to deatch tc program!" << std::endl;
+    if (bpf_tc_detach(&hook, &opts) < 0) {
+        std::cerr << "Failed to detach TC program: " << std::strerror(errno) << std::endl;
     }
 
     ring_buffer__free(log_ring);
