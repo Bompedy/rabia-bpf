@@ -86,7 +86,7 @@ int handle_event(void* ctx, void* data, size_t size) {
 
 ring_buffer* log_ring = nullptr;
 kernel* skeleton = nullptr;
-int interface_idx;
+unsigned int interface_idx;
 char* interface_name;
 int tc_fd;
 
