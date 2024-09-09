@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <iomanip>
 #include "gen.h"
+#include <csignal>
 
 struct address {
     std::string ip_str;
@@ -83,8 +84,44 @@ int handle_event(void* ctx, void* data, size_t size) {
     return 1;
 }
 
+ring_buffer* log_ring = nullptr;
+kernel* skeleton = nullptr;
+int interface_index;
+char* interface;
+int tc_fd;
+
+void cleanup() {
+    if (bpf_xdp_detach(interface_index, 0, nullptr) < 0) {
+        std::cerr << "Failed to detach xdp program!" << std::endl;
+    }
+
+    struct bpf_tc_hook hook = {};
+    struct bpf_tc_opts opts = {};
+    hook.sz = sizeof(hook);
+    hook.attach_point = BPF_TC_EGRESS;
+    hook.ifindex = interface_index;
+    opts.sz = sizeof(opts);
+    opts.prog_fd = tc_fd;
+    const struct bpf_tc_hook* copy_hook = &hook;
+    const struct bpf_tc_opts* copy_opts = &opts;
+    if (bpf_tc_detach(copy_hook, copy_opts) < 0) {
+        std::cerr << "Failed to deatch tc program!" << std::endl;
+    }
+
+    ring_buffer__free(log_ring);
+    kernel__detach(skeleton);
+    kernel__destroy(skeleton);
+}
+
+void termination_handler(int signal) {
+    std::cout << "Received shutdown signal: " << signal << std::endl;
+    cleanup();
+    std::cout << "Exiting program!" << std::endl;
+    std::exit(EXIT_SUCCESS);
+}
+
 int main() {
-    const auto interface = getenv("INTERFACE");
+    interface = getenv("INTERFACE");
     if (!interface) {
         std::cerr << "Interface env var is not set!" << std::endl;
         return EXIT_FAILURE;
@@ -110,36 +147,25 @@ int main() {
         std::cout << "Pod IP,Mac: " << ip.ip_str << ", " << ip.mac_str  << std::endl;
     }
 
-
-    const auto skeleton = kernel__open_and_load();
+    skeleton = kernel__open_and_load();
     if (!skeleton) {
         std::cerr << "Failed to load bpf skeleton" << std::endl;
         return EXIT_FAILURE;
     }
 
-    const auto interface_index = if_nametoindex(interface);
+    interface_index = if_nametoindex(interface);
     if (interface_index == 0) {
-        std::cerr << "Failed to find interface: " << std::strerror(errno) << std::endl;
-        kernel__destroy(skeleton);
+        cleanup();
         return EXIT_FAILURE;
     }
 
     const auto xdp_fd = bpf_program__fd(skeleton->progs.xdp_hook);
     if (bpf_xdp_attach(interface_index, xdp_fd, 0, nullptr) < 0) {
-        std::cerr << "Failed to attach XDP program to interface: " << std::strerror(errno) << std::endl;
+        cleanup();
         return EXIT_FAILURE;
     }
 
-    char command[256];
-    snprintf(command, sizeof(command),"tc qdisc add dev %s clsact", interface);
-    if (system(command) != 0) {
-        fprintf(stderr, "Failed to execute command: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    printf("Successfully added qdisc to %s\n", interface);
-
-    const auto tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
+    tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
     struct bpf_tc_hook hook = {};
     struct bpf_tc_opts opts = {};
     hook.sz = sizeof(hook);
@@ -149,20 +175,18 @@ int main() {
     opts.prog_fd = tc_fd;
 
     if (bpf_tc_attach(&hook, &opts)) {
-        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
+        cleanup();
         return EXIT_FAILURE;
     }
     std::cout << "Attached to tc!" << std::endl;
 
     const auto log_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "output_buf");
     if (log_ring_fd < 0) {
-        std::cerr << "Can't open bpf map" << std::endl;
-        kernel__destroy(skeleton);
+        cleanup();
         return EXIT_FAILURE;
     }
-    const auto log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
-    std::cout << "Got log ring: " << log_ring << std::endl;
 
+    log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
 
 
     for (int i = 0; i < pod_addresses.size(); ++i) {
@@ -172,6 +196,9 @@ int main() {
 
     skeleton->bss->interface_index = interface_index;
     memcpy(skeleton->bss->machine_address, machine_address.mac, ETH_ALEN);
+
+    std::signal(SIGINT, termination_handler);
+    std::signal(SIGTERM, termination_handler);
 
 
     std::thread write_thread([&]() {
@@ -229,19 +256,6 @@ int main() {
         }
     });
     write_thread.join();
-    std::cout << "Does it go here1?" << std::endl;
     poll_thread.join();
-    std::cout << "Does it go here?" << std::endl;
-
-
-//    while (true) {
-//        std::cout << "test" << std::endl;
-//        std::this_thread::sleep_for(std::chrono::seconds(3));
-//    }
-
-    ring_buffer__free(log_ring);
-    kernel__detach(skeleton);
-    kernel__destroy(skeleton);
-    std::cout << "Exiting program!" << std::endl;
     return 0;
 }
