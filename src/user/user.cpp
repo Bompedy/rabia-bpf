@@ -140,6 +140,8 @@ void send_packet(
             std::cerr << "ERROR WRITING TO RAW SOCKET!: " << written << std::endl;
             break;
         }
+
+        std::cout << "Sent " << written << std::endl;
         unsent -= written;
     }
 
