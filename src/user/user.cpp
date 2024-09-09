@@ -255,6 +255,7 @@ int main() {
 
         while (true) {
             send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+            std::cout << "Wrote packet!" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     });
