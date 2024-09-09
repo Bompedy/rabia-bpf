@@ -181,7 +181,7 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_dest[i] = 0xFF;
             }
 
-            if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+            if (bpf_clone_redirect(skb, interface_index, 0)) {
                 print("failed redirect!");
             } else {
                 print("redirected packet!");
