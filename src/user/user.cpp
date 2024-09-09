@@ -142,6 +142,8 @@ void send_packet(
         }
         unsent -= written;
     }
+
+    std::cout << "Wrote out packet!" << std::endl;
 }
 
 unsigned char BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -194,6 +196,7 @@ int main() {
         cleanup();
         return EXIT_FAILURE;
     }
+    std::cout << "Attached to xdp!" << std::endl;
 
     tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
     struct bpf_tc_hook hook = {};
