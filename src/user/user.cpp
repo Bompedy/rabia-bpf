@@ -199,20 +199,20 @@ int main() {
     }
     std::cout << "Attached to xdp!" << std::endl;
 
-//    tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
-//    struct bpf_tc_hook hook = {};
-//    struct bpf_tc_opts opts = {};
-//    hook.sz = sizeof(hook);
-//    hook.attach_point = BPF_TC_EGRESS;
-//    hook.ifindex = interface_idx;
-//    opts.sz = sizeof(opts);
-//    opts.prog_fd = tc_fd;
-//
-//    if (bpf_tc_attach(&hook, &opts)) {
-//        cleanup();
-//        return EXIT_FAILURE;
-//    }
-//    std::cout << "Attached to tc!" << std::endl;
+    tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
+    struct bpf_tc_hook hook = {};
+    struct bpf_tc_opts opts = {};
+    hook.sz = sizeof(hook);
+    hook.attach_point = BPF_TC_EGRESS;
+    hook.ifindex = interface_idx;
+    opts.sz = sizeof(opts);
+    opts.prog_fd = tc_fd;
+
+    if (bpf_tc_attach(&hook, &opts)) {
+        cleanup();
+        return EXIT_FAILURE;
+    }
+    std::cout << "Attached to tc!" << std::endl;
 
     const auto log_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "output_buf");
     if (log_ring_fd < 0) {
