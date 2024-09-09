@@ -250,12 +250,12 @@ int main() {
             return EXIT_FAILURE;
         }
 
-//        send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+        send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
 
 
         while (true) {
-            send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
-            std::cout << "Wrote packet!" << std::endl;
+//            send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+//            std::cout << "Wrote packet!" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     });
