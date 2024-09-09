@@ -96,16 +96,11 @@ void cleanup() {
     }
 
     struct bpf_tc_hook hook = {};
-    struct bpf_tc_opts opts = {};
     hook.sz = sizeof(hook);
     hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_idx;
-    opts.sz = sizeof(opts);
-    opts.prog_fd = tc_fd;
-    bpf_tc_hook_destroy(&hook);
-//    if (bpf_tc_detach(&hook, &opts) < 0) {
-//        std::cerr << "Failed to detach TC program: " << std::strerror(errno) << std::endl;
-//    }
+    if (bpf_tc_hook_destroy(&hook) < 0) {
+        std::cerr << "Failed to destroy tc program!" << std::endl;
+    }
 
     ring_buffer__free(log_ring);
     kernel__detach(skeleton);
