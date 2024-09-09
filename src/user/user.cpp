@@ -109,6 +109,47 @@ void termination_handler(int signal) {
     std::exit(EXIT_SUCCESS);
 }
 
+void send_packet(
+        int socket,
+        unsigned char* source,
+        unsigned char* dest,
+        char* data,
+        int in_size
+) {
+    auto *buffer = (uint8_t *) malloc(sizeof(struct ethhdr) + in_size);
+    auto *eth = (struct ethhdr*) buffer;
+
+    memset(eth, 0, sizeof(struct ethhdr));
+    memcpy(eth->h_dest, dest, ETH_ALEN);
+    memcpy(eth->h_source, source, ETH_ALEN);
+    memcpy(buffer + sizeof(struct ethhdr), data, in_size);
+    eth->h_proto = htons(0xD0D0);
+
+    struct sockaddr_ll sadr_ll{};
+    memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
+    sadr_ll.sll_family = AF_PACKET;
+    sadr_ll.sll_protocol = htons(0xD0D0);
+    sadr_ll.sll_ifindex = interface_idx;
+    sadr_ll.sll_halen = ETH_ALEN;
+    memcpy(sadr_ll.sll_addr, dest, ETH_ALEN);
+
+    auto unsent = sizeof(struct ethhdr) + in_size;
+    while (unsent != 0) {
+        const auto written = sendto(socket, buffer, unsent, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
+        if (written < 0) {
+            std::cerr << "ERROR WRITING TO RAW SOCKET!" << std::endl;
+            break;
+        }
+        unsent -= written;
+    }
+}
+
+unsigned char BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+const int INIT = 0;
+const int PROPOSE = 1;
+const int ACK = 2;
+
 int main() {
     interface_name = getenv("INTERFACE");
     if (!interface_name) {
@@ -205,38 +246,45 @@ int main() {
             return EXIT_FAILURE;
         }
 
-        auto i = 0;
+        send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+
         while (true) {
-            ++i;
-            struct ethhdr eth{};
-            memset(&eth, 0, sizeof(eth));
-            memcpy(eth.h_dest, pod_addresses[i % 4].mac, ETH_ALEN);
-            memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
-            eth.h_proto = htons(0xD0D0);
-
-            int size = sizeof(struct ethhdr) + 64;
-            uint8_t *buffer = (uint8_t *) malloc(size);
-            memset(buffer, 0, sizeof(struct ethhdr) + 64);
-            memcpy(buffer, &eth, sizeof(eth));
-
-            buffer[sizeof(struct ethhdr)] = 0;
-
-            struct sockaddr_ll sadr_ll;
-            memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
-            sadr_ll.sll_family = AF_PACKET;
-            sadr_ll.sll_protocol = htons(0xD0D0);
-            sadr_ll.sll_ifindex = interface_idx;
-            sadr_ll.sll_halen = ETH_ALEN;
-            memcpy(sadr_ll.sll_addr, pod_addresses[i % 4].mac, ETH_ALEN);
-            int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr *) &sadr_ll,
-                              sizeof(struct sockaddr_ll));
-            if (sent < 0) {
-                printf("sent to %d=%d, errno=%d\n", i, sent, errno);
-                return EXIT_FAILURE;
-            }
-            printf("sent to %d=%d\n", i, sent);
+//            send_packet(sock_write, machine_address.mac, BROADCAST, , 1);
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
+
+//        auto i = 0;
+//        while (true) {
+//            ++i;
+//            struct ethhdr eth{};
+//            memset(&eth, 0, sizeof(eth));
+//            memcpy(eth.h_dest, , ETH_ALEN);
+//            memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
+//            eth.h_proto = htons(0xD0D0);
+//
+//            int size = sizeof(struct ethhdr) + 64;
+//            uint8_t *buffer = (uint8_t *) malloc(size);
+//            memset(buffer, 0, sizeof(struct ethhdr) + 64);
+//            memcpy(buffer, &eth, sizeof(eth));
+//
+//            buffer[sizeof(struct ethhdr)] = 0;
+//
+//            struct sockaddr_ll sadr_ll;
+//            memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
+//            sadr_ll.sll_family = AF_PACKET;
+//            sadr_ll.sll_protocol = htons(0xD0D0);
+//            sadr_ll.sll_ifindex = interface_idx;
+//            sadr_ll.sll_halen = ETH_ALEN;
+//            memcpy(sadr_ll.sll_addr, pod_addresses[i % 4].mac, ETH_ALEN);
+//            int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr *) &sadr_ll,
+//                              sizeof(struct sockaddr_ll));
+//            if (sent < 0) {
+//                printf("sent to %d=%d, errno=%d\n", i, sent, errno);
+//                return EXIT_FAILURE;
+//            }
+//            printf("sent to %d=%d\n", i, sent);
+//            std::this_thread::sleep_for(std::chrono::seconds(5));
+//        }
     });
     std::thread poll_thread([&]() {
         while (true) {
