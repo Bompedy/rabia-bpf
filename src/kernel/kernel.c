@@ -109,5 +109,13 @@ int xdp_hook(struct xdp_md *ctx) {
     return XDP_PASS;
 }
 
+#define TC_ACT_OK 0
+
+SEC("tc")
+int tc_hook(struct __sk_buff *skb) {
+
+    return TC_ACT_OK;
+}
+
 
 char _license[] SEC("license") = "GPL";

@@ -130,6 +130,30 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    char command[256];
+    snprintf(command, sizeof(command),"tc qdisc add dev %s clsact", interface);
+    if (system(command) != 0) {
+        fprintf(stderr, "Failed to execute command: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    printf("Successfully added qdisc to %s\n", interface);
+
+    const auto tc_fd = bpf_program__fd(skeleton->progs.tc_hook);
+    struct bpf_tc_hook hook = {};
+    struct bpf_tc_opts opts = {};
+    hook.sz = sizeof(hook);
+    hook.attach_point = BPF_TC_EGRESS;
+    hook.ifindex = interface_index;
+    opts.sz = sizeof(opts);
+    opts.prog_fd = tc_fd;
+
+    if (bpf_tc_attach(&hook, &opts)) {
+        std::cerr << "Failed to attach TC program to interface: " << std::strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+    std::cout << "Attached to tc!" << std::endl;
+
     const auto log_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "output_buf");
     if (log_ring_fd < 0) {
         std::cerr << "Can't open bpf map" << std::endl;
