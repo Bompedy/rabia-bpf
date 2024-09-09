@@ -134,17 +134,13 @@ void send_packet(
     memcpy(sadr_ll.sll_addr, dest, ETH_ALEN);
 
     auto unsent = sizeof(struct ethhdr) + in_size;
-    std::cout << "Unsent: " << unsent;
     while (unsent != 0) {
         const auto written = sendto(socket, buffer, unsent, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
-        std::cout << "Sent 1 " << written << std::endl;
         if (written < 0) {
             std::cerr << "Error: " << strerror(errno) << std::endl;
-            std::cerr << "ERROR WRITING TO RAW SOCKET: " << written << std::endl;
             break;
         }
-
-        std::cout << "Sent 2 " << written << std::endl;
+        buffer += written;
         unsent -= written;
     }
 
