@@ -90,6 +90,8 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    std::cout << interface << std::endl;
+
     const auto machine_address = get_machine_addr(interface);
     std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
 

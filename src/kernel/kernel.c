@@ -30,20 +30,21 @@ int interface_index;
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
+
 //    void *data = (void *) (long) ctx->data;
 //    void *data_end = (void *) (long) ctx->data_end;
 //    if (data + sizeof(struct ethhdr) > data_end) {
 //        return XDP_DROP;
 //    }
 //    struct ethhdr *in_eth = (struct ethhdr *) data;
-    bpf_printk("test");
+//    bpf_printk("test");
 
 
 //    for (int i = 0; i < 3; ++i) {
 //        unsigned char* address = addresses[i];
 //        if (
 //                address[0] != machine_address[0] && address[1] != machine_address[1] && address[2] != machine_address[2]
-//                && address[3] != machine_address[3] && address[4] != machine_address[4] &&
+//                && address[3] != machine_address[3] && address[4] != machine_address[4] &&grep CONFIG_FTRACE /usr/src/linux/.config
 //                address[5] != machine_address[5]
 //        ) {
 //            in_eth->h_dest[0] = address[0];
