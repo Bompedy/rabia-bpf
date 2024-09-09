@@ -142,25 +142,25 @@ int xdp_hook(struct xdp_md *ctx) {
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
-    print("gg");
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
+
     if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == 0x0D0D) {
-        unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
-        if (op == INIT) {
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = 0xFF;
-            }
-            for (int i = 0; i < NUM_PIPES; ++i) {
-                print("Sending out!");
-                bpf_clone_redirect(skb, skb->ifindex, 0);
-            }
-
-            return TC_ACT_SHOT;
-        }
+//        unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
+//        if (op == INIT) {
+//            for (int i = 0; i < 6; i++) {
+//                in_eth->h_source[i] = machine_address[i];
+//                in_eth->h_dest[i] = 0xFF;
+//            }
+//            for (int i = 0; i < NUM_PIPES; ++i) {
+//                print("Sending out!");
+//                bpf_clone_redirect(skb, skb->ifindex, 0);
+//            }
+//
+//            return TC_ACT_SHOT;
+//        }
     }
     return TC_ACT_OK;
 }
