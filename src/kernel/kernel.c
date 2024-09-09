@@ -35,7 +35,6 @@ unsigned int acks[1000000];
 
 unsigned char machine_address[6];
 unsigned char addresses[3][6];
-int interface_index;
 
 
 #define print(message) bpf_ringbuf_output(&output_buf, message, sizeof(message), 0)
@@ -172,8 +171,7 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_dest[i] = 0xFF;
             }
             for (int i = 0; i < NUM_PIPES; ++i) {
-                bpf_printk("Interface: %d - %d", interface_index, skb->ifindex);
-                if (bpf_clone_redirect(skb, interface_index, 0)) {
+                if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", i);
                 }
             }

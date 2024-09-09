@@ -86,7 +86,7 @@ int handle_event(void* ctx, void* data, size_t size) {
 
 ring_buffer* log_ring = nullptr;
 kernel* skeleton = nullptr;
-int interface_idx;
+int interface_index;
 char* interface_name;
 int tc_fd;
 
@@ -94,8 +94,8 @@ void cleanup() {
     struct bpf_tc_hook hook = {};
     hook.sz = sizeof(hook);
     hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_idx;
-    bpf_xdp_detach(interface_idx, 0, nullptr);
+    hook.ifindex = interface_index;
+    bpf_xdp_detach(interface_index, 0, nullptr);
     bpf_tc_hook_destroy(&hook);
     ring_buffer__free(log_ring);
     kernel__detach(skeleton);
@@ -130,7 +130,7 @@ void send_packet(
     memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
     sadr_ll.sll_family = AF_PACKET;
     sadr_ll.sll_protocol = htons(0xD0D0);
-    sadr_ll.sll_ifindex = interface_idx;
+    sadr_ll.sll_ifindex = interface_index;
     sadr_ll.sll_halen = ETH_ALEN;
     memcpy(sadr_ll.sll_addr, dest, ETH_ALEN);
 
@@ -186,14 +186,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    interface_idx = if_nametoindex(interface_name);
-    if (interface_idx == 0) {
+    interface_index = if_nametoindex(interface_name);
+    if (interface_index == 0) {
         cleanup();
         return EXIT_FAILURE;
     }
 
     const auto xdp_fd = bpf_program__fd(skeleton->progs.xdp_hook);
-    if (bpf_xdp_attach(interface_idx, xdp_fd, 0, nullptr) < 0) {
+    if (bpf_xdp_attach(interface_index, xdp_fd, 0, nullptr) < 0) {
         cleanup();
         return EXIT_FAILURE;
     }
@@ -204,7 +204,7 @@ int main() {
     struct bpf_tc_opts opts = {};
     hook.sz = sizeof(hook);
     hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_idx;
+    hook.ifindex = interface_index;
     opts.sz = sizeof(opts);
     opts.prog_fd = tc_fd;
 
@@ -228,7 +228,6 @@ int main() {
         memcpy(skeleton->bss->addresses[i], address.mac, ETH_ALEN);
     }
 
-    skeleton->bss->interface_index = interface_idx;
     memcpy(skeleton->bss->machine_address, machine_address.mac, ETH_ALEN);
 
     std::signal(SIGINT, termination_handler);
