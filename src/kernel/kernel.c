@@ -142,6 +142,7 @@ int xdp_hook(struct xdp_md *ctx) {
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
+    print("Hits tc hook!");
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
 
