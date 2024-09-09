@@ -95,7 +95,6 @@ int main() {
     const auto machine_address = get_machine_addr(interface);
     std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
 
-
     std::vector<address> pod_addresses = {
             {"10.10.1.1", "0c:42:a1:dd:57:fc", {0x0c, 0x42, 0xa1, 0xdd, 0x57, 0xfc}},
             {"10.10.1.2", "0c:42:a1:dd:5f:74", {0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0x74}},
@@ -161,47 +160,41 @@ int main() {
         struct ifreq ifr;
         memset(&ifr, 0, sizeof(ifr));
         snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-        if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+        if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *) &ifr, sizeof(ifr)) < 0) {
             printf("errno=%d\n", errno);
             return EXIT_FAILURE;
         }
 
+        auto i = 0;
         while (true) {
-            auto i = 0;
-//            for (const auto &item: pod_addresses) {
-                ++i;
-//                const auto target = item;
-//                if (std::memcmp(target.mac, machine_address.mac, 6) == 0) continue;
-                unsigned char broadcast[6] {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-                struct ethhdr eth{};
-                memset(&eth, 0, sizeof(eth));
-                memcpy(eth.h_dest, broadcast, ETH_ALEN);
-                memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
-                eth.h_proto = htons(0xD0D0);
+            ++i;
+            struct ethhdr eth{};
+            memset(&eth, 0, sizeof(eth));
+            memcpy(eth.h_dest, pod_addresses[i % 4].mac, ETH_ALEN);
+            memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
+            eth.h_proto = htons(0xD0D0);
 
-                int size = sizeof(struct ethhdr) + 65;
-                uint8_t *buffer = (uint8_t*) malloc(size);
-                memset(buffer, 0, sizeof(struct ethhdr) + 65);
-                memcpy(buffer, &eth, sizeof(eth));
+            int size = sizeof(struct ethhdr) + 5;
+            uint8_t *buffer = (uint8_t *) malloc(size);
+            memset(buffer, 0, sizeof(struct ethhdr) + 5);
+            memcpy(buffer, &eth, sizeof(eth));
 
+            buffer[sizeof(struct ethhdr)] = 0;
 
-//            struct ethhdr *eth = (struct ethhdr*) buffer;
-
-                struct sockaddr_ll sadr_ll;
-                memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
-                sadr_ll.sll_family = AF_PACKET;
-                sadr_ll.sll_protocol = htons(0xD0D0);
-                sadr_ll.sll_ifindex = interface_index;
-                sadr_ll.sll_halen = ETH_ALEN;
-                memcpy(sadr_ll.sll_addr, broadcast, ETH_ALEN);
-                int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr*) &sadr_ll, sizeof(struct sockaddr_ll));
-                if(sent < 0) {
-                    printf("sent to %d=%d, errno=%d\n",i, sent, errno);
-                    return EXIT_FAILURE;
-                }
-                printf("sent to %d=%d\n", i,  sent);
-
-//            }
+            struct sockaddr_ll sadr_ll;
+            memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
+            sadr_ll.sll_family = AF_PACKET;
+            sadr_ll.sll_protocol = htons(0xD0D0);
+            sadr_ll.sll_ifindex = interface_index;
+            sadr_ll.sll_halen = ETH_ALEN;
+            memcpy(sadr_ll.sll_addr, pod_addresses[i % 4].mac, ETH_ALEN);
+            int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr *) &sadr_ll,
+                              sizeof(struct sockaddr_ll));
+            if (sent < 0) {
+                printf("sent to %d=%d, errno=%d\n", i, sent, errno);
+                return EXIT_FAILURE;
+            }
+            printf("sent to %d=%d\n", i, sent);
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     });
