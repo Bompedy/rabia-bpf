@@ -146,12 +146,20 @@ int tc_hook(struct __sk_buff *skb) {
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
 
-    if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
+    if (data + sizeof(struct ethhdr) > data_end) {
+        print("Returning 1");
+        return TC_ACT_OK;
+    }
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == 0x0D0D) {
-        if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) return TC_ACT_OK;
+        print("correct proto");
+        if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) {
+            print("returning 2");
+            return TC_ACT_OK;
+        }
         unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
         if (op == INIT) {
+            print("got init!");
             for (int i = 0; i < 6; i++) {
                 in_eth->h_source[i] = machine_address[i];
                 in_eth->h_dest[i] = 0xFF;
