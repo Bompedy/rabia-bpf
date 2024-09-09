@@ -41,46 +41,44 @@ int xdp_hook(struct xdp_md *ctx) {
         return XDP_PASS;
     }
     unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
-    if (op == 0) { //message
-        unsigned char* address = addresses[0];
-        if (
-                address[0] != machine_address[0] && address[1] != machine_address[1] && address[2] != machine_address[2]
-                && address[3] != machine_address[3] && address[4] != machine_address[4] && address[5] != machine_address[5]
-                ) { //forward
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = address[i];
-            }
-            return XDP_TX;
-        } else { //leader
-            int index = __sync_add_and_fetch(&commit_index, 1);
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = 0xFF;
-            }
-            *((char*) (data + sizeof(struct ethhdr))) = 1;
-            *((int*) (data + sizeof(struct ethhdr) + 1)) = index;
-            return XDP_TX;
-        }
-    } else if (op == 1) {
-        for (int i = 0; i < 6; i++) {
-            in_eth->h_source[i] = machine_address[i];
-            in_eth->h_dest[i] = addresses[0][i];
-        }
-        *((char*) (data + sizeof(struct ethhdr))) = 2;
-        return XDP_TX;
-    } else if (op == 2) {
-        unsigned long index = *((char*) (data + sizeof(struct ethhdr) + 1));
-//        unsigned int ack_count = __sync_add_and_fetch(&acks[index], 1);
-//        if (ack_count >= 2 && commit_index + 1 == index) while (acks[index] >= 2) {
-//                //log index
-//                __sync_val_compare_and_swap(&commit_index, index - 1, index);
-//                index++;
+//    if (op == 0) { //message
+//        unsigned char* address = addresses[0];
+//        if (
+//                address[0] != machine_address[0] && address[1] != machine_address[1] && address[2] != machine_address[2]
+//                && address[3] != machine_address[3] && address[4] != machine_address[4] && address[5] != machine_address[5]
+//        ) { //forward
+//            for (int i = 0; i < 6; i++) {
+//                in_eth->h_source[i] = machine_address[i];
+//                in_eth->h_dest[i] = address[i];
 //            }
-        return XDP_PASS;
-    }
-
-    bpf_printk("test");
+//            return XDP_TX;
+//        } else { //leader
+//            int index = __sync_add_and_fetch(&commit_index, 1);
+//            for (int i = 0; i < 6; i++) {
+//                in_eth->h_source[i] = machine_address[i];
+//                in_eth->h_dest[i] = 0xFF;
+//            }
+//            *((char*) (data + sizeof(struct ethhdr))) = 1;
+//            *((int*) (data + sizeof(struct ethhdr) + 1)) = index;
+//            return XDP_TX;
+//        }
+//    } else if (op == 1) {
+//        for (int i = 0; i < 6; i++) {
+//            in_eth->h_source[i] = machine_address[i];
+//            in_eth->h_dest[i] = addresses[0][i];
+//        }
+//        *((char*) (data + sizeof(struct ethhdr))) = 2;
+//        return XDP_TX;
+//    } else if (op == 2) {
+//        unsigned long index = *((char*) (data + sizeof(struct ethhdr) + 1));
+////        unsigned int ack_count = __sync_add_and_fetch(&acks[index], 1);
+////        if (ack_count >= 2 && commit_index + 1 == index) while (acks[index] >= 2) {
+////                //log index
+////                __sync_val_compare_and_swap(&commit_index, index - 1, index);
+////                index++;
+////            }
+//        return XDP_PASS;
+//    }
 
 
 //    for (int i = 0; i < 3; ++i) {
@@ -113,7 +111,7 @@ int xdp_hook(struct xdp_md *ctx) {
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
-
+    print("gg");
     return TC_ACT_OK;
 }
 
