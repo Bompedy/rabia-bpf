@@ -116,7 +116,7 @@ void send_packet(
         const unsigned char* data,
         const int in_size
 ) {
-    auto *buffer = (uint8_t *) malloc(sizeof(struct ethhdr) + in_size);
+    char *buffer = (char *) malloc(sizeof(struct ethhdr) + in_size);
     auto *eth = (struct ethhdr*) buffer;
 
     memset(eth, 0, sizeof(struct ethhdr));
