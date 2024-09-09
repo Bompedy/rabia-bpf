@@ -155,48 +155,48 @@ unsigned short htons(unsigned short value) {
 }
 
 
-SEC("tc")
-int tc_hook(struct __sk_buff *skb) {
-    print("Hits tc hook!");
-    void *data = (void *) (long) skb->data;
-    void *data_end = (void *) (long) skb->data_end;
-
-    if (data + sizeof(struct ethhdr) > data_end) {
-        print("Returning 1");
-        return TC_ACT_OK;
-    }
-    struct ethhdr *in_eth = (struct ethhdr *) data;
-    if (in_eth->h_proto == htons(0xD0D0)) {
-        print("correct proto");
-        if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) {
-            print("returning 2");
-            return TC_ACT_OK;
-        }
-        unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
-        if (*op == INIT) {
-            *op = PROPOSE;
-            print("got init!");
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = 0xFF;
-            }
-
-            if (bpf_clone_redirect(skb, interface_index, 0)) {
-                print("failed redirect!");
-            } else {
-                print("redirected packet!");
-            }
-
-            return TC_ACT_SHOT;
-//            for (int i = 0; i < NUM_PIPES; ++i) {
-//                print("Sending out!");
-//                bpf_clone_redirect(skb, skb->ifindex, 0);
+//SEC("tc")
+//int tc_hook(struct __sk_buff *skb) {
+//    print("Hits tc hook!");
+//    void *data = (void *) (long) skb->data;
+//    void *data_end = (void *) (long) skb->data_end;
+//
+//    if (data + sizeof(struct ethhdr) > data_end) {
+//        print("Returning 1");
+//        return TC_ACT_OK;
+//    }
+//    struct ethhdr *in_eth = (struct ethhdr *) data;
+//    if (in_eth->h_proto == htons(0xD0D0)) {
+//        print("correct proto");
+//        if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) {
+//            print("returning 2");
+//            return TC_ACT_OK;
+//        }
+//        unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
+//        if (*op == INIT) {
+//            *op = PROPOSE;
+//            print("got init!");
+//            for (int i = 0; i < 6; i++) {
+//                in_eth->h_source[i] = machine_address[i];
+//                in_eth->h_dest[i] = 0xFF;
 //            }
 //
-        }
-    }
-    return TC_ACT_OK;
-}
+//            if (bpf_clone_redirect(skb, interface_index, 0)) {
+//                print("failed redirect!");
+//            } else {
+//                print("redirected packet!");
+//            }
+//
+//            return TC_ACT_SHOT;
+////            for (int i = 0; i < NUM_PIPES; ++i) {
+////                print("Sending out!");
+////                bpf_clone_redirect(skb, skb->ifindex, 0);
+////            }
+////
+//        }
+//    }
+//    return TC_ACT_OK;
+//}
 
 
 
