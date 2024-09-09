@@ -110,11 +110,11 @@ void termination_handler(int signal) {
 }
 
 void send_packet(
-        int socket,
-        unsigned char source[6],
-        unsigned char dest[6],
-        char* data,
-        int in_size
+        const int socket,
+        const unsigned char* source,
+        const unsigned char* dest,
+        const unsigned char* data,
+        const int in_size
 ) {
     auto *buffer = (uint8_t *) malloc(sizeof(struct ethhdr) + in_size);
     auto *eth = (struct ethhdr*) buffer;
@@ -232,7 +232,7 @@ int main() {
 
 
     std::thread write_thread([&]() {
-        int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));
+        const int sock_write = socket(AF_PACKET, SOCK_RAW, htons(0xD0D0));
         if (sock_write < 0) {
             printf("errno=%d\n", errno);
             return EXIT_FAILURE;
@@ -247,6 +247,7 @@ int main() {
         }
 
         send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+
 
         while (true) {
 //            send_packet(sock_write, machine_address.mac, BROADCAST, , 1);
