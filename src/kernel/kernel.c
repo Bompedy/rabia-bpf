@@ -9,6 +9,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/pkt_cls.h>
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -17,9 +18,11 @@ struct {
 
 #define PAXOS_PORT 6969
 
+#define NUM_PIPES 50
+
 #define MENCIUS_REVISITED 0
 #define PAXOS_HELPER 1
-#define MULTI_PAXOS 0
+#define MULTI_PAXOS 2
 
 #define INIT 0
 #define PROPOSE 1
@@ -32,7 +35,6 @@ unsigned int acks[1000000];
 
 unsigned char machine_address[6];
 unsigned char addresses[3][6];
-unsigned char leader_address[6] = addresses[0];
 int interface_index;
 
 
@@ -41,34 +43,35 @@ int interface_index;
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
-    void *data = (void *) (long) ctx->data;
-    void *data_end = (void *) (long) ctx->data_end;
-    if (data + sizeof(struct ethhdr) > data_end) {
-        return XDP_DROP;
-    }
-    struct ethhdr *in_eth = (struct ethhdr *) data;
-    if (in_eth->h_proto == 0x0D0D) {
-        return XDP_PASS;
-    }
-    unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
-    unsigned int slot = ((unsigned int *)data + sizeof(struct ethhdr) + 1);
-    if (*op == PROPOSE) {
-        unsigned int next = *((unsigned int *)data + sizeof(struct ethhdr) + 5);
-        int current;
-        do {
-            current = committed;
-        } while (next > current && !__sync_val_compare_and_swap(&committed, current, next));
-        if (PAXOS_HELPER) {
-            *op = ACK;
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = leader_address[i];
-            }
-
-        }
-    } else if (*op == ACK) {
-
-    }
+    print("Came here!");
+//    void *data = (void *) (long) ctx->data;
+//    void *data_end = (void *) (long) ctx->data_end;
+//    if (data + sizeof(struct ethhdr) > data_end) {
+//        return XDP_DROP;
+//    }
+//    struct ethhdr *in_eth = (struct ethhdr *) data;
+//    if (in_eth->h_proto == 0x0D0D) {
+//        return XDP_PASS;
+//    }
+//    unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
+//    unsigned int *slot = ((unsigned int *)data + sizeof(struct ethhdr) + 1);
+//    if (*op == PROPOSE) {
+//        unsigned int next = *((unsigned int *)data + sizeof(struct ethhdr) + 5);
+//        int current;
+//        do {
+//            current = committed;
+//        } while (next > current && !__sync_val_compare_and_swap(&committed, current, next));
+//        if (PAXOS_HELPER) {
+//            *op = ACK;
+//            for (int i = 0; i < 6; i++) {
+//                in_eth->h_source[i] = machine_address[i];
+//                in_eth->h_dest[i] = addresses[0][i];
+//            }
+//
+//        }
+//    } else if (*op == ACK) {
+//
+//    }
 
 //    if (op == 0) { //message
 //        unsigned char* address = addresses[0];
@@ -136,7 +139,6 @@ int xdp_hook(struct xdp_md *ctx) {
     return XDP_PASS;
 }
 
-#define TC_ACT_OK 0
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
@@ -144,10 +146,21 @@ int tc_hook(struct __sk_buff *skb) {
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
     if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
-    unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
-    if (op == INIT) {
+    struct ethhdr *in_eth = (struct ethhdr *) data;
+    if (in_eth->h_proto == 0x0D0D) {
+        unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
+        if (op == INIT) {
+            for (int i = 0; i < 6; i++) {
+                in_eth->h_source[i] = machine_address[i];
+                in_eth->h_dest[i] = 0xFF;
+            }
+            for (int i = 0; i < NUM_PIPES; ++i) {
+                print("Sending out!");
+                bpf_clone_redirect(skb, skb->ifindex, 0);
+            }
 
-        return bpf_clone_redirect();
+            return TC_ACT_SHOT;
+        }
     }
     return TC_ACT_OK;
 }
