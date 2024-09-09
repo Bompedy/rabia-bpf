@@ -111,8 +111,8 @@ void termination_handler(int signal) {
 
 void send_packet(
         int socket,
-        unsigned char* source,
-        unsigned char* dest,
+        unsigned char source[6],
+        unsigned char dest[6],
         char* data,
         int in_size
 ) {
