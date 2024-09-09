@@ -136,12 +136,13 @@ void send_packet(
     auto unsent = sizeof(struct ethhdr) + in_size;
     while (unsent != 0) {
         const auto written = sendto(socket, buffer, unsent, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
+        std::cout << "Sent 1 " << written << std::endl;
         if (written < 0) {
             std::cerr << "ERROR WRITING TO RAW SOCKET!: " << written << std::endl;
             break;
         }
 
-        std::cout << "Sent " << written << std::endl;
+        std::cout << "Sent 2 " << written << std::endl;
         unsent -= written;
     }
 
