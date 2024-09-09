@@ -17,12 +17,22 @@ struct {
 
 #define PAXOS_PORT 6969
 
-unsigned long last_commit_index = 0L;
-unsigned long commit_index = 0L;
+#define MENCIUS_REVISITED 0
+#define PAXOS_HELPER 1
+#define MULTI_PAXOS 0
+
+#define INIT 0
+#define PROPOSE 1
+#define ACK 2
+
+unsigned int consumed = 0;
+unsigned int committed = 0;
 unsigned int acks[1000000];
+
 
 unsigned char machine_address[6];
 unsigned char addresses[3][6];
+unsigned char leader_address[6] = addresses[0];
 int interface_index;
 
 
@@ -40,7 +50,26 @@ int xdp_hook(struct xdp_md *ctx) {
     if (in_eth->h_proto == 0x0D0D) {
         return XDP_PASS;
     }
-    unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
+    unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
+    unsigned int slot = ((unsigned int *)data + sizeof(struct ethhdr) + 1);
+    if (*op == PROPOSE) {
+        unsigned int next = *((unsigned int *)data + sizeof(struct ethhdr) + 5);
+        int current;
+        do {
+            current = committed;
+        } while (next > current && !__sync_val_compare_and_swap(&committed, current, next));
+        if (PAXOS_HELPER) {
+            *op = ACK;
+            for (int i = 0; i < 6; i++) {
+                in_eth->h_source[i] = machine_address[i];
+                in_eth->h_dest[i] = leader_address[i];
+            }
+
+        }
+    } else if (*op == ACK) {
+
+    }
+
 //    if (op == 0) { //message
 //        unsigned char* address = addresses[0];
 //        if (
@@ -112,6 +141,14 @@ int xdp_hook(struct xdp_md *ctx) {
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
     print("gg");
+    void *data = (void *) (long) skb->data;
+    void *data_end = (void *) (long) skb->data_end;
+    if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
+    unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
+    if (op == INIT) {
+
+        return bpf_clone_redirect();
+    }
     return TC_ACT_OK;
 }
 

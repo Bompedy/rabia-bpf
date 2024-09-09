@@ -214,9 +214,9 @@ int main() {
             memcpy(eth.h_source, machine_address.mac, ETH_ALEN);
             eth.h_proto = htons(0xD0D0);
 
-            int size = sizeof(struct ethhdr) + 5;
+            int size = sizeof(struct ethhdr) + 64;
             uint8_t *buffer = (uint8_t *) malloc(size);
-            memset(buffer, 0, sizeof(struct ethhdr) + 5);
+            memset(buffer, 0, sizeof(struct ethhdr) + 64);
             memcpy(buffer, &eth, sizeof(eth));
 
             buffer[sizeof(struct ethhdr)] = 0;
