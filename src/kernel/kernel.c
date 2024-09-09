@@ -43,16 +43,17 @@ int interface_index;
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
-    print("GOT XDP PACKET!");
-//    void *data = (void *) (long) ctx->data;
-//    void *data_end = (void *) (long) ctx->data_end;
-//    if (data + sizeof(struct ethhdr) > data_end) {
-//        return XDP_DROP;
-//    }
-//    struct ethhdr *in_eth = (struct ethhdr *) data;
-//    if (in_eth->h_proto == 0x0D0D) {
-//        return XDP_PASS;
-//    }
+    void *data = (void *) (long) ctx->data;
+    void *data_end = (void *) (long) ctx->data_end;
+    if (data + sizeof(struct ethhdr) > data_end) {
+        return XDP_DROP;
+    }
+    struct ethhdr *in_eth = (struct ethhdr *) data;
+    if (in_eth->h_proto == 0x0D0D) {
+        return XDP_PASS;
+    }
+
+    bpf_printk("GOT PIPE SETUP PACKET!");
 //    unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
 //    unsigned int *slot = ((unsigned int *)data + sizeof(struct ethhdr) + 1);
 //    if (*op == PROPOSE) {
@@ -157,10 +158,8 @@ unsigned short htons(unsigned short value) {
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
-    print("Hits tc hook!");
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
-
     if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == htons(0xD0D0)) {
@@ -172,12 +171,9 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_source[i] = machine_address[i];
                 in_eth->h_dest[i] = 0xFF;
             }
-
             for (int i = 0; i < NUM_PIPES; ++i) {
                 if (bpf_clone_redirect(skb, interface_index, 0)) {
-                    print("FAILED PIPE INIT");
-                } else {
-                    bpf_printk("well it worked!");
+                    bpf_printk("FAILED PIPE INIT: %d", i);
                 }
             }
 
