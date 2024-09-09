@@ -172,6 +172,7 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_dest[i] = 0xFF;
             }
             for (int i = 0; i < NUM_PIPES; ++i) {
+                bpf_printk("Interface: %d - %d", interface_index, skb->ifindex);
                 if (bpf_clone_redirect(skb, interface_index, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", i);
                 }
