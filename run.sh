@@ -1,4 +1,5 @@
 #!/bin/bash
+git config --global --add safe.directory /local/rabia-bpf
 git pull
 mkdir -p build
 cd build
