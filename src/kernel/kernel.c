@@ -16,6 +16,11 @@ struct {
     __uint(max_entries, 4096);
 } output_buf SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 4096);
+} request_buf SEC(".maps");
+
 #define PAXOS_PORT 6969
 
 #define NUM_PIPES 20
@@ -171,6 +176,7 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_dest[i] = 0xFF;
             }
             for (int i = 0; i < NUM_PIPES; ++i) {
+                // pull from queue and propose
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", i);
                 }

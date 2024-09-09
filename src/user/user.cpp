@@ -85,6 +85,7 @@ int handle_event(void* ctx, void* data, size_t size) {
 }
 
 ring_buffer* log_ring = nullptr;
+ring_buffer* request_ring = nullptr;
 kernel* skeleton = nullptr;
 int interface_index;
 char* interface_name;
@@ -222,6 +223,13 @@ int main() {
 
     log_ring = ring_buffer__new(log_ring_fd, handle_event, nullptr, nullptr);
 
+    const auto request_ring_fd = bpf_object__find_map_fd_by_name(skeleton->obj, "request_buf");
+    if (request_ring_fd < 0) {
+        cleanup();
+        return EXIT_FAILURE;
+    }
+
+    request_ring = ring_buffer__new(request_ring_fd, handle_event, nullptr, nullptr);
 
     for (int i = 0; i < pod_addresses.size(); ++i) {
         const auto address = pod_addresses[i];
