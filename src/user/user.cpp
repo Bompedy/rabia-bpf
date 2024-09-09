@@ -250,7 +250,7 @@ int main() {
             return EXIT_FAILURE;
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
 
 
