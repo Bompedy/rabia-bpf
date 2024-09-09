@@ -146,6 +146,7 @@ void send_packet(
         unsent -= written;
     }
 
+    free(buffer);
     std::cout << "Wrote out packet!" << std::endl;
 }
 
