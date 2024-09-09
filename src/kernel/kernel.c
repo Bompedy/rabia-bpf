@@ -18,7 +18,7 @@ struct {
 
 #define PAXOS_PORT 6969
 
-#define NUM_PIPES 50
+#define NUM_PIPES 20
 
 #define MENCIUS_REVISITED 0
 #define PAXOS_HELPER 1
@@ -43,7 +43,7 @@ int interface_index;
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
-    print("Came here!");
+    print("GOT XDP PACKET!");
 //    void *data = (void *) (long) ctx->data;
 //    void *data_end = (void *) (long) ctx->data_end;
 //    if (data + sizeof(struct ethhdr) > data_end) {
@@ -181,18 +181,15 @@ int tc_hook(struct __sk_buff *skb) {
                 in_eth->h_dest[i] = 0xFF;
             }
 
-            if (bpf_clone_redirect(skb, interface_index, 0)) {
-                print("failed redirect!");
-            } else {
-                print("redirected packet!");
+            for (int i = 0; i < NUM_PIPES; ++i) {
+                if (bpf_clone_redirect(skb, interface_index, 0)) {
+                    print("failed redirect!");
+                } else {
+                    print("redirected packet!");
+                }
             }
 
             return TC_ACT_SHOT;
-//            for (int i = 0; i < NUM_PIPES; ++i) {
-//                print("Sending out!");
-//                bpf_clone_redirect(skb, skb->ifindex, 0);
-//            }
-//
         }
     }
     return TC_ACT_OK;
