@@ -137,7 +137,6 @@ void send_packet(
     size_t cursor = 0;
     while (cursor < size) {
         const auto written = sendto(socket, buffer + cursor, size - cursor, 0, (const struct sockaddr *) &sadr_ll, sizeof(struct sockaddr_ll));
-        std::cout << "Wrote: " << written << std::endl;
         if (written < 0) {
             std::cerr << "Error: " << strerror(errno) << std::endl;
             break;
@@ -146,7 +145,6 @@ void send_packet(
     }
 
     free(buffer);
-    std::cout << "Wrote out packet!" << std::endl;
 }
 
 unsigned char BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
