@@ -86,7 +86,7 @@ int handle_event(void* ctx, void* data, size_t size) {
 
 ring_buffer* log_ring = nullptr;
 kernel* skeleton = nullptr;
-unsigned int interface_idx;
+int interface_idx;
 char* interface_name;
 int tc_fd;
 
@@ -102,9 +102,10 @@ void cleanup() {
     hook.ifindex = interface_idx;
     opts.sz = sizeof(opts);
     opts.prog_fd = tc_fd;
-    if (bpf_tc_detach(&hook, &opts) < 0) {
-        std::cerr << "Failed to detach TC program: " << std::strerror(errno) << std::endl;
-    }
+    bpf_tc_hook_destroy(&hook);
+//    if (bpf_tc_detach(&hook, &opts) < 0) {
+//        std::cerr << "Failed to detach TC program: " << std::strerror(errno) << std::endl;
+//    }
 
     ring_buffer__free(log_ring);
     kernel__detach(skeleton);
