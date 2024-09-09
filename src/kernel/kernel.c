@@ -148,8 +148,8 @@ int tc_hook(struct __sk_buff *skb) {
     if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == 0x0D0D) {
-//        unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
-//        if (op == INIT) {
+        unsigned char op = *((unsigned char *)data + sizeof(struct ethhdr));
+        if (op == INIT) {
 //            for (int i = 0; i < 6; i++) {
 //                in_eth->h_source[i] = machine_address[i];
 //                in_eth->h_dest[i] = 0xFF;
@@ -160,7 +160,7 @@ int tc_hook(struct __sk_buff *skb) {
 //            }
 //
 //            return TC_ACT_SHOT;
-//        }
+        }
     }
     return TC_ACT_OK;
 }
