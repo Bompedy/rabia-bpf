@@ -139,6 +139,21 @@ int xdp_hook(struct xdp_md *ctx) {
     return XDP_PASS;
 }
 
+unsigned short htons(unsigned short value) {
+    unsigned short result;
+    unsigned char *result_ptr = (unsigned char *)&result;
+    unsigned char *host_ptr = (unsigned char *)&value;
+
+    if (*(unsigned char *)&value == (value & 0xFF)) {
+        result_ptr[0] = host_ptr[1];
+        result_ptr[1] = host_ptr[0];
+    } else {
+        result = value;
+    }
+
+    return result;
+}
+
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
@@ -151,7 +166,7 @@ int tc_hook(struct __sk_buff *skb) {
         return TC_ACT_OK;
     }
     struct ethhdr *in_eth = (struct ethhdr *) data;
-    if (in_eth->h_proto == 0x0D0D) {
+    if (in_eth->h_proto == htons(0xD0D0)) {
         print("correct proto");
         if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) {
             print("returning 2");
