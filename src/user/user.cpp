@@ -116,7 +116,8 @@ void send_packet(
         const unsigned char* data,
         const int in_size
 ) {
-    char *buffer = (char *) malloc(sizeof(struct ethhdr) + in_size);
+    size_t size = sizeof(struct ethhdr) + in_size;
+    char *buffer = (char *) malloc(size);
     auto *eth = (struct ethhdr*) buffer;
 
     memset(eth, 0, sizeof(struct ethhdr));
@@ -142,7 +143,9 @@ void send_packet(
             std::cerr << "Error: " << strerror(errno) << std::endl;
             break;
         }
-        buffer += written;
+        if (buffer + written < (buffer + size)) {
+            buffer += written;
+        }
         unsent -= written;
     }
 
