@@ -44,7 +44,7 @@ std::string mac_to_string(const unsigned char *mac, size_t len) {
     return mac_addr;
 }
 
-// Function to get machine's IP address and MAC address for a given interface
+// Function to get machine's IP address and MAC address for a given interface_name
 address get_machine_addr(const std::string& interface_name) {
     address result;
     struct ifaddrs *ifaddr_struct = nullptr;
@@ -86,12 +86,12 @@ int handle_event(void* ctx, void* data, size_t size) {
 
 ring_buffer* log_ring = nullptr;
 kernel* skeleton = nullptr;
-int interface_index;
-char* interface;
+int interface_idx;
+char* interface_name;
 int tc_fd;
 
 void cleanup() {
-    if (bpf_xdp_detach(interface_index, 0, nullptr) < 0) {
+    if (bpf_xdp_detach(interface_idx, 0, nullptr) < 0) {
         std::cerr << "Failed to detach xdp program!" << std::endl;
     }
 
@@ -99,7 +99,7 @@ void cleanup() {
     struct bpf_tc_opts opts = {};
     hook.sz = sizeof(hook);
     hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_index;
+    hook.ifindex = interface_idx;
     opts.sz = sizeof(opts);
     opts.prog_fd = tc_fd;
     const struct bpf_tc_hook* copy_hook = &hook;
@@ -121,15 +121,15 @@ void termination_handler(int signal) {
 }
 
 int main() {
-    interface = getenv("INTERFACE");
-    if (!interface) {
+    interface_name = getenv("INTERFACE");
+    if (!interface_name) {
         std::cerr << "Interface env var is not set!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    std::cout << interface << std::endl;
+    std::cout << interface_name << std::endl;
 
-    const auto machine_address = get_machine_addr(interface);
+    const auto machine_address = get_machine_addr(interface_name);
     std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
 
     std::vector<address> pod_addresses = {
@@ -153,14 +153,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    interface_index = if_nametoindex(interface);
-    if (interface_index == 0) {
+    interface_idx = if_nametoindex(interface_name);
+    if (interface_idx == 0) {
         cleanup();
         return EXIT_FAILURE;
     }
 
     const auto xdp_fd = bpf_program__fd(skeleton->progs.xdp_hook);
-    if (bpf_xdp_attach(interface_index, xdp_fd, 0, nullptr) < 0) {
+    if (bpf_xdp_attach(interface_idx, xdp_fd, 0, nullptr) < 0) {
         cleanup();
         return EXIT_FAILURE;
     }
@@ -170,7 +170,7 @@ int main() {
     struct bpf_tc_opts opts = {};
     hook.sz = sizeof(hook);
     hook.attach_point = BPF_TC_EGRESS;
-    hook.ifindex = interface_index;
+    hook.ifindex = interface_idx;
     opts.sz = sizeof(opts);
     opts.prog_fd = tc_fd;
 
@@ -194,7 +194,7 @@ int main() {
         memcpy(skeleton->bss->addresses[i], address.mac, ETH_ALEN);
     }
 
-    skeleton->bss->interface_index = interface_index;
+    skeleton->bss->interface_index = interface_idx;
     memcpy(skeleton->bss->machine_address, machine_address.mac, ETH_ALEN);
 
     std::signal(SIGINT, termination_handler);
@@ -210,7 +210,7 @@ int main() {
 
         struct ifreq ifr;
         memset(&ifr, 0, sizeof(ifr));
-        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface_name);
         if (setsockopt(sock_write, SOL_SOCKET, SO_BINDTODEVICE, (void *) &ifr, sizeof(ifr)) < 0) {
             printf("errno=%d\n", errno);
             return EXIT_FAILURE;
@@ -236,7 +236,7 @@ int main() {
             memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
             sadr_ll.sll_family = AF_PACKET;
             sadr_ll.sll_protocol = htons(0xD0D0);
-            sadr_ll.sll_ifindex = interface_index;
+            sadr_ll.sll_ifindex = interface_idx;
             sadr_ll.sll_halen = ETH_ALEN;
             memcpy(sadr_ll.sll_addr, pod_addresses[i % 4].mac, ETH_ALEN);
             int sent = sendto(sock_write, buffer, size, 0, (const struct sockaddr *) &sadr_ll,
