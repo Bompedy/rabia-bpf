@@ -171,10 +171,6 @@ int tc_hook(struct __sk_buff *skb) {
         unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
         if (*op == INIT) {
             *op = PROPOSE;
-            for (int i = 0; i < 6; i++) {
-                in_eth->h_source[i] = machine_address[i];
-                in_eth->h_dest[i] = 0xFF;
-            }
             for (int i = 0; i < NUM_PIPES; ++i) {
                 // pull from queue and propose
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
