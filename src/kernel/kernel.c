@@ -301,6 +301,7 @@ int tc_hook(struct __sk_buff *skb) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
         if (in_paxos->op == INIT) {
             in_paxos->op = PROPOSE;
+            in_paxos->slot = 4;
             if (MULTI_PAXOS) {
                 for (int i = 0; i < NUM_PIPES; ++i) {
 //                    in_paxos->slot = i;
