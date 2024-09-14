@@ -85,9 +85,10 @@ int xdp_hook(struct xdp_md *ctx) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *) data + sizeof(struct ethhdr));
         int skip = in_paxos->data_size == -1 ? 1 : 0;
         if (!skip) {
-            if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end) return XDP_PASS;
+            if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end || in_paxos->data_size < 0 || in_paxos->data_size > 1400) return XDP_PASS;
 //            char* slot = paxos_log[in_paxos->slot];
-            if (in_paxos->data_size < 1400 && bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
+
+            if (bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
                 bpf_printk("ERRORED WHEN LOADING BYTES!");
             } else {
                 bpf_printk("successfuly stored bytes!");
