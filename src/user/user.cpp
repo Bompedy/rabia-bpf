@@ -131,6 +131,8 @@ void send_packet(
         const int socket,
         const unsigned char* source,
         const unsigned char* dest,
+        const unsigned char op,
+        unsigned long long slot,
         char* data,
         const int in_size
 ) {
@@ -146,8 +148,8 @@ void send_packet(
     eth->h_proto = htons(0xD0D0);
 
     memset(paxos, 0, sizeof(struct paxos_hdr));
-    paxos->op = INIT;
-    paxos->slot = 0;
+    paxos->op = op;
+    paxos->slot = slot;
     paxos->next = 0;
     paxos->data_size = -1;
 
@@ -250,6 +252,7 @@ int main() {
 
     request_ring = ring_buffer__new(request_ring_fd, handle_event, nullptr, nullptr);
 
+
     for (int i = 0; i < pod_addresses.size(); ++i) {
         const auto address = pod_addresses[i];
         memcpy(skeleton->bss->addresses[i], address.mac, ETH_ALEN);
@@ -280,7 +283,9 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(10));
         char buffer[PACKET_SIZE];
         memset(&buffer, 0, PACKET_SIZE);
-        send_packet(sock_write, machine_address.mac, BROADCAST, buffer, PACKET_SIZE);
+        for (int i = 0; i < 0; ++i) {
+            send_packet(sock_write, machine_address.mac, BROADCAST, INIT, i, buffer, PACKET_SIZE);
+        }
 
 
 
