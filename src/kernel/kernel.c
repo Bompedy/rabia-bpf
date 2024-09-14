@@ -241,7 +241,7 @@ int tc_hook(struct __sk_buff *skb) {
         if (in_paxos->op == INIT) {
             in_paxos->op = PROPOSE;
             unsigned long long slot = in_paxos->slot;
-            if (MULTI_PAXOS) {
+            if (MULTI_PAXOS && node_index == 0) {
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", slot);
                 } else

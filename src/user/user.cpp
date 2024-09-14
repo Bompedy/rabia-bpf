@@ -208,6 +208,15 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    for (int i = 0; i < pod_addresses.size(); ++i) {
+        const auto ip = pod_addresses[i];
+        if (strcmp(ip.ip_str.c_str(), machine_address.ip_str.c_str()) == 0) {
+            skeleton->bss->node_index = i;
+            std::cout << "Set node index to: " << i << std::endl;
+        }
+        std::cout << "Pod IP,Mac: " << ip.ip_str << ", " << ip.mac_str  << std::endl;
+    }
+
     interface_index = if_nametoindex(interface_name);
     if (interface_index == 0) {
         cleanup();
