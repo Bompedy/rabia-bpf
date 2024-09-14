@@ -244,7 +244,8 @@ int tc_hook(struct __sk_buff *skb) {
             if (MULTI_PAXOS) {
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", slot);
-                }
+                } else
+                    bpf_printk("PROPOSED PIPE: %d", slot);
             }
 
             return TC_ACT_SHOT;
