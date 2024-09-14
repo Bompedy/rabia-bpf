@@ -47,8 +47,8 @@ unsigned char node_index;
 
 struct paxos_hdr {
     unsigned char op;
-    unsigned long slot;
-    unsigned long next;
+    unsigned long long slot;
+    unsigned long long next;
     int data_size;
 };
 
