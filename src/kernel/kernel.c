@@ -302,11 +302,11 @@ int tc_hook(struct __sk_buff *skb) {
         if (in_paxos->op == INIT) {
             in_paxos->op = PROPOSE;
             if (MULTI_PAXOS) {
-//                for (int i = 0; i < NUM_PIPES; ++i) {
-//                    in_paxos->slot = i;
+                for (int i = 0; i < NUM_PIPES; ++i) {
+                    in_paxos->slot = i;
 //                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
 //                        bpf_printk("FAILED PIPE INIT: %d", i);
-//                    }
+                    }
                 }
 //            } else if (PAXOS_HELPER) {
 //                for (int i = 0; i < NUM_PIPES; ++i) {
