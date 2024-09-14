@@ -65,10 +65,6 @@ unsigned short htons(unsigned short value) {
     return result;
 }
 
-void memcpy(char* d, char* s, int count) {
-
-}
-
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
     void *data = (void *) (long) ctx->data;
