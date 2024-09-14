@@ -65,6 +65,16 @@ unsigned short htons(unsigned short value) {
     return result;
 }
 
+/*
+ * 13: (1d) if r4 == r5 goto pc+22       ; R4=scalar(umax=4294967295,var_off=(0x0; 0xffffffff)) R5=4294967295
+; if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end) return XDP_PASS;
+14: (bf) r5 = r4                      ; R4=scalar(id=1,umax=4294967295,var_off=(0x0; 0xffffffff)) R5_w=scalar(id=1,umax=4294967295,var_off=(0x0; 0xffffffff))
+15: (67) r5 <<= 32                    ; R5_w=scalar(smax=9223372032559808512,umax=18446744069414584320,var_off=(0x0; 0xffffffff00000000),s32_min=0,s32_max=0,u32_max=0)
+16: (c7) r5 s>>= 32                   ; R5_w=scalar(smin=-2147483648,smax=2147483647)
+17: (bf) r0 = r1                      ; R0_w=pkt(off=46,r=46,imm=0) R1=pkt(off=46,r=46,imm=0)
+18: (0f) r0 += r5
+value -2147483648 makes pkt pointer be out of bounds*/
+
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
     void *data = (void *) (long) ctx->data;
@@ -76,11 +86,11 @@ int xdp_hook(struct xdp_md *ctx) {
         int skip = in_paxos->data_size == -1 ? 1 : 0;
         if (!skip) {
             if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end) return XDP_PASS;
-            if (bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
-                bpf_printk("ERRORED WHEN LOADING BYTES!");
-            } else {
-                bpf_printk("successfuly stored bytes!");
-            }
+//            if (bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
+//                bpf_printk("ERRORED WHEN LOADING BYTES!");
+//            } else {
+//                bpf_printk("successfuly stored bytes!");
+//            }
 //            __builtin_memcpy(paxos_log[in_paxos->slot], (char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), in_paxos->data_size);
         }
 //        bpf_printk("GOT PIPE SETUP PACKET: op=%d, slot=%d, next=%d, data_size=%d", in_paxos->op, in_paxos->slot, in_paxos->next, in_paxos->data_size);
