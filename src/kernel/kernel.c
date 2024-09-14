@@ -1,14 +1,6 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include <linux/bpf_common.h>
 #include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/udp.h>
-#include <linux/if_ether.h>
-#include <linux/bpf.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
 #include <linux/pkt_cls.h>
 
 struct {
@@ -21,21 +13,20 @@ struct {
     __uint(max_entries, 4096);
 } request_buf SEC(".maps");
 
-#define PAXOS_PORT 6969
-
 #define NUM_PIPES 20
 
 #define MENCIUS_REVISITED 0
 #define PAXOS_HELPER 0
 #define MULTI_PAXOS 1
+#define MAJORITY 2
 
-#define INIT 0
-#define PROPOSE 1
-#define ACK 2
+const unsigned char INIT = 0;
+const unsigned char PROPOSE = 1;
+const unsigned char ACK = 2;
 
 unsigned int consumed = 0;
-unsigned int committed = 0;
-unsigned int acks[1000000];
+unsigned long long committed = 0;
+unsigned long long acks[1000000];
 
 
 unsigned char machine_address[6];
@@ -65,88 +56,79 @@ unsigned short htons(unsigned short value) {
     return result;
 }
 
-/*
- * 13: (1d) if r4 == r5 goto pc+22       ; R4=scalar(umax=4294967295,var_off=(0x0; 0xffffffff)) R5=4294967295
-; if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end) return XDP_PASS;
-14: (bf) r5 = r4                      ; R4=scalar(id=1,umax=4294967295,var_off=(0x0; 0xffffffff)) R5_w=scalar(id=1,umax=4294967295,var_off=(0x0; 0xffffffff))
-15: (67) r5 <<= 32                    ; R5_w=scalar(smax=9223372032559808512,umax=18446744069414584320,var_off=(0x0; 0xffffffff00000000),s32_min=0,s32_max=0,u32_max=0)
-16: (c7) r5 s>>= 32                   ; R5_w=scalar(smin=-2147483648,smax=2147483647)
-17: (bf) r0 = r1                      ; R0_w=pkt(off=46,r=46,imm=0) R1=pkt(off=46,r=46,imm=0)
-18: (0f) r0 += r5
-value -2147483648 makes pkt pointer be out of bounds*/
+const unsigned int HEADER_SIZE = (sizeof(struct ethhdr) + sizeof(struct paxos_hdr));
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
     void *data = (void *) (long) ctx->data;
     void *data_end = (void *) (long) ctx->data_end;
-    if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) return XDP_PASS;
+    if (data + HEADER_SIZE > data_end) return XDP_PASS;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == htons(0xD0D0)) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *) data + sizeof(struct ethhdr));
-        int skip = in_paxos->data_size == -1 ? 1 : 0;
-        if (!skip) {
-            if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end || in_paxos->data_size < 0 || in_paxos->data_size > 1400) return XDP_PASS;
-//            char* slot = paxos_log[in_paxos->slot];
+        if (in_paxos->op == PROPOSE) {
+            if (data + HEADER_SIZE + in_paxos->data_size > data_end) return XDP_PASS;
+            unsigned long long current;
+            do { current = __sync_fetch_and_add(&committed, 0); }
+            while (in_paxos->next > current && __sync_val_compare_and_swap(&committed, current, in_paxos->next) == current);
 
-            if (bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
+            if (in_paxos->data_size > 0 && in_paxos->data_size < 1400 &&
+                bpf_skb_load_bytes((char *) (data + HEADER_SIZE), 0,paxos_log[in_paxos->slot], in_paxos->data_size) < 0
+            ) {
                 bpf_printk("ERRORED WHEN LOADING BYTES!");
             } else {
                 bpf_printk("successfuly stored bytes!");
+                for (int i = 0; i < 6; ++i) {
+                    in_eth->h_dest[i] = MULTI_PAXOS ? in_eth->h_source[i] : addresses[0][i];
+                    in_eth->h_source[i] = machine_address[i];
+                }
+                in_paxos->op = ACK;
+                return XDP_TX;
             }
-//            __builtin_memcpy(paxos_log[in_paxos->slot], (char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), in_paxos->data_size);
+
+        } else if (in_paxos->op == ACK) {
+            unsigned long long slot = in_paxos->slot;
+            unsigned int acked = __sync_fetch_and_add(&acks[slot], 1);
+            if (acked == MAJORITY) {
+                unsigned long long current;
+                in_paxos->next = current = __sync_fetch_and_add(&committed, 0);
+                for (unsigned long long i = current + 1; i <= slot; ++i) {
+                    if (__sync_fetch_and_add(&acks[i], 0) >= MAJORITY) {
+                        in_paxos->next = i;
+                    } else break;
+                }
+
+                while (in_paxos->next > current && __sync_val_compare_and_swap(&committed, current, in_paxos->next) == current) {
+                    current = __sync_fetch_and_add(&committed, 0);
+                }
+
+                if (MULTI_PAXOS || slot % node_index == 0) {
+                    in_paxos->op = PROPOSE;
+                    in_paxos->slot = (slot + NUM_PIPES);
+
+                    for (int i = 0; i < 6; ++i) {
+                        in_eth->h_dest[i] = 0xFF;
+                        in_eth->h_source[i] = machine_address[i];
+                    }
+
+                    // poll or skip, update our log
+                    return XDP_TX;
+                }
+            }
+
         }
-//        bpf_printk("GOT PIPE SETUP PACKET: op=%d, slot=%d, next=%d, data_size=%d", in_paxos->op, in_paxos->slot, in_paxos->next, in_paxos->data_size);
         return XDP_PASS;
     }
 
 
     return XDP_PASS;
 }
-/*
- * log: array<bytes>
-acks: array<int>
-committed: int
-consumed: int
-
-on_propose(slot: int, message: bytes, next: int) {
-  //put the proposal into the log.
-  log[slot] = message
-  //MR doesn't need "learn step" although it could use it without harm.
-  if (!MENCIUS_REVISITED) {
-    //he we learn about where commit was moved up to so we move it.
-    current: int
-    do {
-      current = atomic_load(committed)
-    } while (next > current && !atomic_cas(committed, current, next))
-    //PH respond to static leader rather than sender (assumed leader for MP)
-    if (PAXOS_HELPER) respond_leader_ack(slot) else respond_ack(slot)
-  } else respond_multicast_ack(slot) //Mencius multicast to let others learn.
-}
-
-on_ack(slot: int) {
-  //record the ack for this slot
-  previous = atomic_add(acks[slot], 1)
-  if (previous != MAJORITY -1) return;
-  //TODO: maybe we can move this code to a timer if it's too slow.
-  //find out how many slots we can commit (doesn't commit over holes)
-  current = next = atomic_load(committed)
-  for (i in comitted+1..slot)
-    if (atomic_load(acks[i]) >= MAJORITY)
-      next = i
-    else break
-  //Simply try to move forward commit if we were able to.
-  while (next > current && !atomic_cas(committed, current, next))
-    current = atomic_load(committed)
-  //if we own the slot (MP owns no matter what) then propose next and let learn.
-  if (MULTI_PAXOS || slot % THIS_NODE == 0)
-    multicast_propose(pq.poll() ?? SKIP, slot += NUM_PIPES, next)
-}*/
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
-    if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) return TC_ACT_OK;
+    if (data + HEADER_SIZE > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == htons(0xD0D0)) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
@@ -154,7 +136,8 @@ int tc_hook(struct __sk_buff *skb) {
             in_paxos->op = PROPOSE;
             in_paxos->data_size = 4;
             unsigned long long slot = in_paxos->slot;
-            if (MULTI_PAXOS && node_index == 0) {
+            if ((MULTI_PAXOS && node_index == 0) || (PAXOS_HELPER && node_index % slot == 0)) {
+                // poll or skip, update our log
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
                     bpf_printk("FAILED PIPE INIT: %d", slot);
                 } else
@@ -166,7 +149,5 @@ int tc_hook(struct __sk_buff *skb) {
     }
     return TC_ACT_OK;
 }
-
-
 
 char _license[] SEC("license") = "GPL";
