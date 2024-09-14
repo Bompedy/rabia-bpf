@@ -283,7 +283,7 @@ int main() {
         std::this_thread::sleep_for(std::chrono::seconds(10));
         char buffer[PACKET_SIZE];
         memset(&buffer, 0, PACKET_SIZE);
-        for (int i = 0; i < 0; ++i) {
+        for (int i = 0; i < 20; ++i) {
             send_packet(sock_write, machine_address.mac, BROADCAST, INIT, i, buffer, PACKET_SIZE);
         }
 
