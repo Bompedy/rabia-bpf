@@ -234,7 +234,7 @@ SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
-    if (data + sizeof(struct ethhdr) + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
+    if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == htons(0xD0D0)) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
@@ -242,7 +242,7 @@ int tc_hook(struct __sk_buff *skb) {
             in_paxos->op = PROPOSE;
             if (MULTI_PAXOS) {
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-//                    bpf_printk("FAILED PIPE INIT: %d", in_paxos->slot);
+                    bpf_printk("FAILED PIPE INIT: %d", in_paxos->slot);
                 }
             }
 
