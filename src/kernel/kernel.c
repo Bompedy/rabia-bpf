@@ -120,7 +120,6 @@ int xdp_hook(struct xdp_md *ctx) {
         return XDP_PASS;
     }
 
-
     return XDP_PASS;
 }
 
