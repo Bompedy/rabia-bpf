@@ -26,6 +26,16 @@
 #include <iomanip>
 #include "gen.h"
 #include <csignal>
+//#include <../kernel/kernel.c>
+
+
+unsigned char BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+const unsigned char INIT = 0;
+const unsigned char PROPOSE = 1;
+const unsigned char ACK = 2;
+
+const unsigned short PACKET_SIZE = 1365;
 
 struct address {
     std::string ip_str;
@@ -110,22 +120,37 @@ void termination_handler(int signal) {
     std::exit(EXIT_SUCCESS);
 }
 
+struct paxos_hdr {
+    unsigned char op;
+    unsigned long slot;
+    unsigned long next;
+    int data_size;
+};
+
 void send_packet(
         const int socket,
         const unsigned char* source,
         const unsigned char* dest,
-        const unsigned char* data,
+        char* data,
         const int in_size
 ) {
-    size_t size = sizeof(struct ethhdr) + in_size;
+    size_t size = sizeof(struct ethhdr) + sizeof(paxos_hdr) + in_size;
     char *buffer = (char *) malloc(size);
     auto *eth = (struct ethhdr*) buffer;
+    auto *paxos = (struct paxos_hdr*) (buffer + sizeof(ethhdr));
 
     memset(eth, 0, sizeof(struct ethhdr));
     memcpy(eth->h_dest, dest, ETH_ALEN);
     memcpy(eth->h_source, source, ETH_ALEN);
     memcpy(buffer + sizeof(struct ethhdr), data, in_size);
     eth->h_proto = htons(0xD0D0);
+
+    memset(paxos, 0, sizeof(struct paxos_hdr));
+    paxos->op = INIT;
+    paxos->slot = 0;
+    paxos->next = 0;
+    paxos->data_size = -1;
+
 
     struct sockaddr_ll sadr_ll{};
     memset(&sadr_ll, 0, sizeof(struct sockaddr_ll));
@@ -148,12 +173,6 @@ void send_packet(
     free(buffer);
 }
 
-unsigned char BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-const unsigned char INIT = 0;
-const unsigned char PROPOSE = 1;
-const unsigned char ACK = 2;
-
 int main() {
     interface_name = getenv("INTERFACE");
     if (!interface_name) {
@@ -167,9 +186,9 @@ int main() {
     std::cout << "This machines address: " << machine_address.mac_str << ", " << machine_address.ip_str << std::endl;
 
     std::vector<address> pod_addresses = {
-            {"10.10.1.1", "0c:42:a1:dd:57:fc", {0x0c, 0x42, 0xa1, 0xdd, 0x57, 0xfc}},
-            {"10.10.1.2", "0c:42:a1:dd:5f:74", {0x0c, 0x42, 0xa1, 0xdd, 0x5f, 0x74}},
-            {"10.10.1.3", "0c:42:a1:dd:5e:80", {0x0c, 0x42, 0xa1, 0xdd, 0x5e, 0x80}}
+            {"10.10.1.1", "3c:fd:fe:04:b7:42 ", {0x3c, 0xfd, 0xfe, 0x04, 0xb7, 0x42}},
+            {"10.10.1.2", "3c:fd:fe:04:2d:82", {0x3c, 0xfd, 0xfe, 0x04, 0x2d, 0x82}},
+            {"10.10.1.3", "3c:fd:fe:04:2a:22", {0x3c, 0xfd, 0xfe, 0x04, 0x2a, 0x22}}
     };
 
     if (pod_addresses.empty()) {
@@ -256,9 +275,13 @@ int main() {
             printf("errno=%d\n", errno);
             return EXIT_FAILURE;
         }
-
+        // 1 bytes(key, value)
+        // 2 bytes(key, value)
         std::this_thread::sleep_for(std::chrono::seconds(10));
-        send_packet(sock_write, machine_address.mac, BROADCAST, &INIT, 1);
+        char buffer[PACKET_SIZE];
+        memset(&buffer, 0, PACKET_SIZE);
+        send_packet(sock_write, machine_address.mac, BROADCAST, buffer, PACKET_SIZE);
+
 
 
         while (true) {

@@ -26,8 +26,8 @@ struct {
 #define NUM_PIPES 20
 
 #define MENCIUS_REVISITED 0
-#define PAXOS_HELPER 1
-#define MULTI_PAXOS 2
+#define PAXOS_HELPER 0
+#define MULTI_PAXOS 1
 
 #define INIT 0
 #define PROPOSE 1
@@ -40,24 +40,48 @@ unsigned int acks[1000000];
 
 unsigned char machine_address[6];
 unsigned char addresses[3][6];
+unsigned char node_index;
 
 
 #define print(message) bpf_ringbuf_output(&output_buf, message, sizeof(message), 0)
+
+struct paxos_hdr {
+    unsigned char op;
+    unsigned long slot;
+    unsigned long next;
+    int data_size;
+};
+
+unsigned short htons(unsigned short value) {
+    unsigned short result;
+    unsigned char *result_ptr = (unsigned char *)&result;
+    unsigned char *host_ptr = (unsigned char *)&value;
+
+    if (*(unsigned char *)&value == (value & 0xFF)) {
+        result_ptr[0] = host_ptr[1];
+        result_ptr[1] = host_ptr[0];
+    } else {
+        result = value;
+    }
+
+    return result;
+}
 
 
 SEC("xdp")
 int xdp_hook(struct xdp_md *ctx) {
     void *data = (void *) (long) ctx->data;
     void *data_end = (void *) (long) ctx->data_end;
-    if (data + sizeof(struct ethhdr) > data_end) {
+    if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) {
         return XDP_DROP;
     }
     struct ethhdr *in_eth = (struct ethhdr *) data;
-    if (in_eth->h_proto == 0x0D0D) {
+    if (in_eth->h_proto == htons(0xD0D0)) {
+        struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *) data + sizeof(struct ethhdr));
+        bpf_printk("GOT PIPE SETUP PACKET: op=%d, slot=%d, next=%d, data_size=%d", in_paxos->op, in_paxos->slot, in_paxos->next, in_paxos->data_size);
         return XDP_PASS;
     }
 
-    bpf_printk("GOT PIPE SETUP PACKET!");
 //    unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
 //    unsigned int *slot = ((unsigned int *)data + sizeof(struct ethhdr) + 1);
 //    if (*op == PROPOSE) {
@@ -143,38 +167,93 @@ int xdp_hook(struct xdp_md *ctx) {
 
     return XDP_PASS;
 }
+/*
+ * log: array<bytes>
+acks: array<int>
+committed: int
+consumed: int
 
-unsigned short htons(unsigned short value) {
-    unsigned short result;
-    unsigned char *result_ptr = (unsigned char *)&result;
-    unsigned char *host_ptr = (unsigned char *)&value;
-
-    if (*(unsigned char *)&value == (value & 0xFF)) {
-        result_ptr[0] = host_ptr[1];
-        result_ptr[1] = host_ptr[0];
-    } else {
-        result = value;
-    }
-
-    return result;
+on_propose(slot: int, message: bytes, next: int) {
+  //put the proposal into the log.
+  log[slot] = message
+  //MR doesn't need "learn step" although it could use it without harm.
+  if (!MENCIUS_REVISITED) {
+    //he we learn about where commit was moved up to so we move it.
+    current: int
+    do {
+      current = atomic_load(committed)
+    } while (next > current && !atomic_cas(committed, current, next))
+    //PH respond to static leader rather than sender (assumed leader for MP)
+    if (PAXOS_HELPER) respond_leader_ack(slot) else respond_ack(slot)
+  } else respond_multicast_ack(slot) //Mencius multicast to let others learn.
 }
 
+on_ack(slot: int) {
+  //record the ack for this slot
+  previous = atomic_add(acks[slot], 1)
+  if (previous != MAJORITY -1) return;
+  //TODO: maybe we can move this code to a timer if it's too slow.
+  //find out how many slots we can commit (doesn't commit over holes)
+  current = next = atomic_load(committed)
+  for (i in comitted+1..slot)
+    if (atomic_load(acks[i]) >= MAJORITY)
+      next = i
+    else break
+  //Simply try to move forward commit if we were able to.
+  while (next > current && !atomic_cas(committed, current, next))
+    current = atomic_load(committed)
+  //if we own the slot (MP owns no matter what) then propose next and let learn.
+  if (MULTI_PAXOS || slot % THIS_NODE == 0)
+    multicast_propose(pq.poll() ?? SKIP, slot += NUM_PIPES, next)
+}
+
+
+//MP has all pipes on leader, PH and MR distribute them evenly.
+for (i in NUM_PIPES)
+  if (MULTI_PAOXS || i % THIS_NODE == 0)
+     multicast_propose(pq.poll() ?? SKIP, i, 0)
+*/
+
+// eth header
+// sender 6
+// receiver 6
+// protocol 2
+
+// 1400 - 35
+// 1365
+
+// consensus header
+// op = INIT, PROPOSE, ACK 1
+// next = committed up to 8
+// slot 8
+// bytes size 4
+// bytes message undefined
 
 SEC("tc")
 int tc_hook(struct __sk_buff *skb) {
     void *data = (void *) (long) skb->data;
     void *data_end = (void *) (long) skb->data_end;
-    if (data + sizeof(struct ethhdr) > data_end) return TC_ACT_OK;
+    if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) return TC_ACT_OK;
     struct ethhdr *in_eth = (struct ethhdr *) data;
     if (in_eth->h_proto == htons(0xD0D0)) {
-        if (data + sizeof(struct ethhdr) + sizeof(unsigned char) > data_end) return TC_ACT_OK;
-        unsigned char *op = ((unsigned char *)data + sizeof(struct ethhdr));
-        if (*op == INIT) {
-            *op = PROPOSE;
-            for (int i = 0; i < NUM_PIPES; ++i) {
-                // pull from queue and propose
-                if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-                    bpf_printk("FAILED PIPE INIT: %d", i);
+        struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
+        if (in_paxos->op == INIT) {
+            in_paxos->op = PROPOSE;
+            if (MULTI_PAXOS) {
+                for (int i = 0; i < NUM_PIPES; ++i) {
+                    in_paxos->slot = i;
+                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+                        bpf_printk("FAILED PIPE INIT: %d", i);
+                    }
+                }
+            } else if (PAXOS_HELPER) {
+                for (int i = 0; i < NUM_PIPES; ++i) {
+                    if (i % node_index == 0) {
+                        in_paxos->slot = i;
+                        if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+                            bpf_printk("FAILED PIPE INIT: %d", i);
+                        }
+                    }
                 }
             }
 
