@@ -86,11 +86,12 @@ int xdp_hook(struct xdp_md *ctx) {
         int skip = in_paxos->data_size == -1 ? 1 : 0;
         if (!skip) {
             if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) + in_paxos->data_size > data_end) return XDP_PASS;
-//            if (bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
-//                bpf_printk("ERRORED WHEN LOADING BYTES!");
-//            } else {
-//                bpf_printk("successfuly stored bytes!");
-//            }
+//            char* slot = paxos_log[in_paxos->slot];
+            if (in_paxos->data_size < 1400 && bpf_skb_load_bytes((char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), 0, paxos_log[in_paxos->slot], in_paxos->data_size) < 0) {
+                bpf_printk("ERRORED WHEN LOADING BYTES!");
+            } else {
+                bpf_printk("successfuly stored bytes!");
+            }
 //            __builtin_memcpy(paxos_log[in_paxos->slot], (char*) (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr)), in_paxos->data_size);
         }
 //        bpf_printk("GOT PIPE SETUP PACKET: op=%d, slot=%d, next=%d, data_size=%d", in_paxos->op, in_paxos->slot, in_paxos->next, in_paxos->data_size);
