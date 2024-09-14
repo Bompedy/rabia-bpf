@@ -240,9 +240,10 @@ int tc_hook(struct __sk_buff *skb) {
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
         if (in_paxos->op == INIT) {
             in_paxos->op = PROPOSE;
+            unsigned long long slot = in_paxos->slot;
             if (MULTI_PAXOS) {
                 if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-//                    bpf_printk("FAILED PIPE INIT: %d", in_paxos->slot);
+                    bpf_printk("FAILED PIPE INIT: %d", slot);
                 }
             }
 
