@@ -304,8 +304,8 @@ int tc_hook(struct __sk_buff *skb) {
             if (MULTI_PAXOS) {
                 for (int i = 0; i < NUM_PIPES; ++i) {
                     in_paxos->slot = i;
-//                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-//                        bpf_printk("FAILED PIPE INIT: %d", i);
+                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+                       bpf_printk("FAILED PIPE INIT: %d", i);
                     }
                 }
 //            } else if (PAXOS_HELPER) {
