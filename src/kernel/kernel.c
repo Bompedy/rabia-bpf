@@ -299,28 +299,28 @@ int tc_hook(struct __sk_buff *skb) {
     if (in_eth->h_proto == htons(0xD0D0)) {
         if (data + sizeof(struct ethhdr) + sizeof(struct paxos_hdr) > data_end) return TC_ACT_OK;
         struct paxos_hdr *in_paxos = (struct paxos_hdr*) ((unsigned char *)data + sizeof(struct ethhdr));
-        if (in_paxos->op == INIT) {
-            in_paxos->op = PROPOSE;
-            if (MULTI_PAXOS) {
-                for (int i = 0; i < NUM_PIPES; ++i) {
-                    in_paxos->slot = i;
-                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-                        bpf_printk("FAILED PIPE INIT: %d", i);
-                    }
-                }
-            } else if (PAXOS_HELPER) {
-                for (int i = 0; i < NUM_PIPES; ++i) {
-                    if (i % node_index == 0) {
-                        in_paxos->slot = i;
-                        if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
-                            bpf_printk("FAILED PIPE INIT: %d", i);
-                        }
-                    }
-                }
-            }
-
-            return TC_ACT_SHOT;
-        }
+//        if (in_paxos->op == INIT) {
+//            in_paxos->op = PROPOSE;
+//            if (MULTI_PAXOS) {
+//                for (int i = 0; i < NUM_PIPES; ++i) {
+//                    in_paxos->slot = i;
+//                    if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+//                        bpf_printk("FAILED PIPE INIT: %d", i);
+//                    }
+//                }
+//            } else if (PAXOS_HELPER) {
+//                for (int i = 0; i < NUM_PIPES; ++i) {
+//                    if (i % node_index == 0) {
+//                        in_paxos->slot = i;
+//                        if (bpf_clone_redirect(skb, skb->ifindex, 0)) {
+//                            bpf_printk("FAILED PIPE INIT: %d", i);
+//                        }
+//                    }
+//                }
+//            }
+//
+//            return TC_ACT_SHOT;
+//        }
     }
     return TC_ACT_OK;
 }
